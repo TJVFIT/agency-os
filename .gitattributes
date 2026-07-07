@@ -1,0 +1,6 @@
+# Normalize line endings — the app deploys to Linux (Oracle box via Coolify).
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary

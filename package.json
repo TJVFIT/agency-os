@@ -1,0 +1,36 @@
+{
+  "name": "agency-os",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit && pnpm --filter @agency-os/worker typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.4",
+    "supabase": "^2.109.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

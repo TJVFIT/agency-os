@@ -1,0 +1,12 @@
+# generated / locked
+node_modules
+.next
+pnpm-lock.yaml
+next-env.d.ts
+
+# SQL must stay byte-identical to schema.sql (Phase 0 acceptance)
+schema.sql
+supabase/
+
+# static assets
+public
