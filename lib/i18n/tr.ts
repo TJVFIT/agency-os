@@ -3,26 +3,44 @@
  * Structured so an `en.ts` can later mirror it: implement `Translation`
  * (same shape, every leaf a string) and switch modules per user preference.
  *
- * Keep keys in English, values in Turkish. Interpolation slots use {name}.
+ * Keep keys in English, values in Turkish. Interpolation slots use {name};
+ * render with the `interpolate` helper below.
  */
 
 export const tr = {
+  appName: 'Agency OS',
+
   common: {
     save: 'Kaydet',
     cancel: 'Vazgeç',
     delete: 'Sil',
     edit: 'Düzenle',
     create: 'Oluştur',
+    add: 'Ekle',
+    remove: 'Kaldır',
     search: 'Ara',
     filter: 'Filtrele',
+    all: 'Tümü',
     loading: 'Yükleniyor…',
     processing: 'İşleniyor…',
     error: 'Bir hata oluştu',
     retry: 'Tekrar dene',
     close: 'Kapat',
     confirm: 'Onayla',
+    copy: 'Kopyala',
+    copied: 'Kopyalandı',
     yes: 'Evet',
     no: 'Hayır',
+    none: 'Yok',
+    unknown: 'Bilinmiyor',
+    notFound: 'Bulunamadı',
+    forbidden: 'Bu işlem için yetkiniz yok',
+    unauthenticated: 'Oturum açmanız gerekiyor',
+    saved: 'Kaydedildi',
+    today: 'Bugün',
+    week: 'Hafta',
+    month: 'Ay',
+    open: 'Aç',
   },
 
   auth: {
@@ -31,6 +49,8 @@ export const tr = {
     email: 'E-posta',
     password: 'Şifre',
     loginFailed: 'Giriş başarısız — e-posta veya şifre hatalı',
+    loginTitle: 'Agency OS’a giriş',
+    loginSubtitle: 'Ajans hesabınla devam et',
   },
 
   nav: {
@@ -68,6 +88,15 @@ export const tr = {
     other: 'Diğer',
   },
 
+  platforms: {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    tiktok: 'TikTok',
+    x: 'X',
+    youtube: 'YouTube',
+    linkedin: 'LinkedIn',
+  },
+
   // Human-readable messages for lib/status.ts TransitionReason codes.
   statusReasons: {
     same_status: 'Kart zaten bu durumda',
@@ -87,29 +116,231 @@ export const tr = {
     newCard: 'Yeni kart',
     title: 'Başlık',
     client: 'Müşteri',
+    type: 'Tür',
+    status: 'Durum',
     assignee: 'Sorumlu',
+    noAssignee: 'Sorumlu yok',
     dueDate: 'Termin',
     scheduledAt: 'Yayın zamanı',
     platforms: 'Platformlar',
     priority: 'Öncelik',
+    tags: 'Etiketler',
     comments: 'Yorumlar',
+    commentPlaceholder: 'Yorum yaz…',
+    sendComment: 'Gönder',
+    noComments: 'Henüz yorum yok',
     sendForApproval: 'Onaya gönder',
     approve: 'Onayla',
     reject: 'Reddet',
     rejectReason: 'Reddetme nedeni',
+    archive: 'Arşivle',
+    caption: 'Metin',
+    captionPlaceholder: 'Gönderi metni…',
+    hashtags: 'Etiketler (hashtag)',
+    hashtagsPlaceholder: 'hashtag1, hashtag2…',
+    media: 'Medya',
+    chooseMedia: 'Medya seç',
+    noMedia: 'Medya eklenmemiş',
+    schedule: 'Zamanla',
+    scheduleTitle: 'Yayını zamanla',
+    moveTo: 'Duruma taşı',
+    langComplete: 'tamam',
+    langMissing: 'eksik',
+    createdBy: 'Oluşturan',
+    workroom: 'Çalışma odası',
+  },
+
+  board: {
+    title: 'Pano',
+    filterClient: 'Müşteri',
+    filterAssignee: 'Sorumlu',
+    filterType: 'Tür',
+    empty: 'Bu görünümde kart yok',
+    dragError: 'Taşıma başarısız',
+  },
+
+  calendar: {
+    title: 'Takvim',
+    monthView: 'Ay',
+    weekView: 'Hafta',
+    allClients: 'Tüm müşteriler',
+    unscheduled: 'Tarihsiz kartlar',
+    sendWeekForApproval: 'Haftayı onaya gönder',
+    rescheduled: 'Tarih güncellendi',
+  },
+
+  dashboard: {
+    title: 'Panel',
+    myQueue: 'Kuyruğum',
+    myQueueEmpty: 'Süper! Bekleyen işin yok.',
+    waitingOnYou: 'Seni bekliyor',
+    gapRadar: 'Boşluk radarı',
+    gapRadarEmpty: 'Önümüzdeki 5 gün için tüm müşterilerde içerik planlı.',
+    gapRadarWarning: '{client}: önümüzdeki 5 günde planlı içerik yok',
+    workerStatus: 'Worker durumu',
+    workerAlive: 'Çalışıyor',
+    workerDead: 'Erişilemiyor',
+  },
+
+  clients: {
+    title: 'Müşteriler',
+    newClient: 'Yeni müşteri',
+    name: 'İsim',
+    slug: 'Kısa ad (URL)',
+    industry: 'Sektör',
+    langs: 'Diller',
+    active: 'Aktif',
+    inactive: 'Pasif',
+    brandProfile: 'Marka profili',
+    voice: 'Marka sesi',
+    voicePlaceholder: 'ör. Samimi, esprili, mahalle kahvecisi gibi…',
+    toneRules: 'Ton kuralları',
+    bannedWords: 'Yasaklı kelimeler',
+    signatureItems: 'İmza ürünler / öğeler',
+    emojiOk: 'Emoji kullanılabilir',
+    sampleCaptions: 'Örnek metinler',
+    glossary: 'Sözlük',
+    glossaryTerm: 'Terim',
+    glossaryRule: 'Kural',
+    glossaryKeep: 'Aynen koru',
+    glossaryTranslateTo: 'Şöyle çevir',
+    glossaryValue: 'Karşılık',
+    hashtagBank: 'Hashtag bankası',
+    hashtagPlaceholder: '#etiket ekle…',
+    socialAccounts: 'Sosyal hesaplar',
+    handle: 'Kullanıcı adı',
+    platform: 'Platform',
+    addAccount: 'Hesap ekle',
+    colors: 'Marka renkleri',
+    primaryColor: 'Ana renk',
+    secondaryColor: 'İkincil renk',
+    metrics: 'Metrikler',
+    metricsEntry: 'Metrik girişi',
+    reportsHistory: 'Rapor geçmişi',
+    noReports: 'Henüz rapor yok',
+    deleteConfirm: 'Bu müşteri ve tüm kartları silinecek. Emin misin?',
+  },
+
+  assets: {
+    title: 'Medya kütüphanesi',
+    upload: 'Yükle',
+    uploading: 'Yükleniyor…',
+    filterKind: 'Tür',
+    filterSource: 'Kaynak',
+    kinds: { image: 'Görsel', video: 'Video', other: 'Diğer' },
+    sources: {
+      upload: 'Yükleme',
+      telegram: 'Telegram',
+      ai: 'AI',
+      render: 'Render',
+    },
+    variants: 'Boyutlar',
+    variantNames: {
+      square: 'Kare (1080×1080)',
+      portrait: 'Dikey (1080×1350)',
+      story: 'Hikâye (1080×1920)',
+      thumb: 'Küçük',
+    },
+    original: 'Orijinal',
+    removeBg: 'Arka planı kaldır',
+    makeReel: 'Reel yap',
+    empty: 'Henüz medya yok',
+    tooLarge: 'Dosya çok büyük (görsel 10 MB, video 200 MB sınırı)',
+    processingVariants: 'Boyutlar hazırlanıyor…',
   },
 
   ai: {
     generateCaptions: '3 başlık üret',
     translate: 'Çevir',
     draftReply: 'Yanıt taslağı',
+    replyIncoming: 'Gelen mesaj',
+    replyContext: 'Bağlam (opsiyonel)',
+    replyEscalate: 'İnsana devret',
     pending: 'İşleniyor…',
     failed: 'AI işlemi başarısız oldu',
+    pickVariant: 'Bir varyant seç',
+    variantApplied: 'Metin karta yazıldı',
+    translationNotes: 'Çeviri notu',
+    brief: 'Brief',
+  },
+
+  approval: {
+    pageTitle: 'İçerik onayı',
+    weekOf: '{date} haftası',
+    approveAll: 'Hepsini onayla',
+    approveOne: 'Onayla',
+    rejectOne: 'Reddet',
+    commentPlaceholder: 'Not ekle (opsiyonel)…',
+    rejectCommentPlaceholder: 'Neyi değiştirelim?',
+    thanks: 'Teşekkürler! Kararlarınız ekibe iletildi.',
+    nothingPending: 'Onay bekleyen içerik yok.',
+    expired:
+      'Bu bağlantının süresi dolmuş. Ajansınızdan yeni bağlantı isteyin.',
+    linkCreated: 'Onay bağlantısı oluşturuldu ve panoya kopyalandı',
+    whatsappMessage:
+      'Merhaba! {week} haftasının içerikleri onayınıza hazır: {url}',
+  },
+
+  settings: {
+    title: 'Ayarlar',
+    profile: 'Profil',
+    fullName: 'Ad soyad',
+    telegram: 'Telegram bağlantısı',
+    telegramLinked: 'Telegram bağlı',
+    telegramNotLinked: 'Telegram bağlı değil',
+    telegramCode: 'Bağlama kodu',
+    telegramCodeHelp: 'Bota /link {code} yaz — kod 10 dakika geçerlidir.',
+    generateCode: 'Kod oluştur',
+    users: 'Kullanıcılar',
+    inviteUser: 'Kullanıcı davet et',
+    role: 'Rol',
+    postiz: 'Postiz eşleştirme',
+    postizHelp: 'Postiz entegrasyonlarını müşteri hesaplarına bağla',
+    postizNotConfigured: 'Postiz yapılandırılmamış (POSTIZ_URL boş)',
+    providerHealth: 'AI sağlayıcı durumu',
+    queueDepth: 'Kuyruk derinliği',
+    lastSuccess: 'Son başarılı istek',
+  },
+
+  reports: {
+    title: 'Raporlar',
+    weekOf: '{date} haftası',
+    empty: 'Henüz rapor yok',
+    metricsJson: 'Metrikler',
   },
 
   feed: {
     title: 'Canlı akış',
     empty: 'Henüz aktivite yok',
+    system: 'Sistem',
+    // Templates per activity_log.action — {actor}, {card}, {client} + detail fields.
+    actions: {
+      'card.created': '{actor}, "{title}" kartını oluşturdu',
+      'card.status_changed': '{actor}, kartı {from} → {to} durumuna taşıdı',
+      'comment.added': '{actor} yorum yazdı: "{excerpt}"',
+      'content.updated': '{actor}, {lang} metnini güncelledi',
+      'asset.created': '{actor} yeni medya ekledi ({name})',
+      'ai.caption_done': 'AI, başlık önerilerini hazırladı',
+      'ai.translate_done': 'AI çevirisi hazır',
+      'ai.reply_done': 'AI yanıt taslağı hazır',
+      'ai.job_failed': 'AI işi başarısız oldu: {error}',
+      'approval.granted': 'Müşteri kartı onayladı',
+      'approval.rejected': 'Müşteri kartı reddetti: "{comment}"',
+      'approval.link_created':
+        '{actor}, {week} haftası için onay bağlantısı oluşturdu',
+      'publish.success': 'Kart yayınlandı 🎉',
+      'publish.failed': 'Yayınlama başarısız: {error}',
+      'worker.heartbeat': 'Worker sinyali',
+      fallback: '{actor}: {action}',
+    },
+  },
+
+  errors: {
+    generic: 'Bir şeyler ters gitti. Tekrar deneyin.',
+    validation: 'Form alanlarını kontrol edin',
+    slugTaken: 'Bu kısa ad zaten kullanılıyor',
+    cardNotFound: 'Kart bulunamadı',
+    clientNotFound: 'Müşteri bulunamadı',
   },
 } as const;
 
@@ -117,3 +348,14 @@ export const tr = {
  * `en.ts` must satisfy this to guarantee key parity. */
 type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };
 export type Translation = Widen<typeof tr>;
+
+/** Render "{slot}" templates: interpolate(tr.feed.actions['card.created'], {actor, title}) */
+export function interpolate(
+  template: string,
+  values: Record<string, string | number | null | undefined>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    const v = values[key];
+    return v === null || v === undefined ? '—' : String(v);
+  });
+}
