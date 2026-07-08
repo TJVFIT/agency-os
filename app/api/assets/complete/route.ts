@@ -46,13 +46,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
 
   if (b.kind === 'image') {
-    await supabase
-      .from('ai_jobs')
-      .insert({
-        kind: 'image_variants',
-        payload: { asset_id: asset.id },
-        created_by: session.userId,
-      });
+    await supabase.from('ai_jobs').insert({
+      kind: 'image_variants',
+      payload: { asset_id: asset.id },
+      created_by: session.userId,
+    });
   }
 
   return NextResponse.json({ assetId: asset.id });

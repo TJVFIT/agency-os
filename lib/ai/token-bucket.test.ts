@@ -4,7 +4,7 @@ import { TokenBucket } from './token-bucket';
 
 describe('TokenBucket (SPEC §6.2: 1 req / 5s sustained, burst 3)', () => {
   it('allows a burst up to capacity, then blocks', () => {
-    let t = 1_000_000;
+    const t = 1_000_000;
     const bucket = new TokenBucket(3, 5000, () => t);
     expect(bucket.tryAcquire()).toBe(true);
     expect(bucket.tryAcquire()).toBe(true);

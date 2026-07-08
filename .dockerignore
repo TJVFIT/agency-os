@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+.next
+.git
+coverage
+*.tsbuildinfo
+.env*
+!.env.example
+scratchpad

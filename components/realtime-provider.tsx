@@ -8,10 +8,10 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 
@@ -39,16 +39,30 @@ interface RealtimeBus {
   ): () => void;
 }
 
+interface InternalBus extends RealtimeBus {
+  emit(event: string, payload: unknown): void;
+}
+
 const RealtimeContext = createContext<RealtimeBus | null>(null);
 
-export function RealtimeProvider({ children }: { children: ReactNode }) {
-  const handlersRef = useRef(
-    new Map<string, Set<(payload: unknown) => void>>(),
-  );
+/** A stable event bus backed by a closure-local handler map (no refs). */
+function createRealtimeBus(): InternalBus {
+  const handlers = new Map<string, Set<(payload: unknown) => void>>();
+  return {
+    emit(event, payload) {
+      handlers.get(event)?.forEach((h) => h(payload));
+    },
+    subscribe(event, handler) {
+      if (!handlers.has(event)) handlers.set(event, new Set());
+      const set = handlers.get(event)!;
+      set.add(handler as (payload: unknown) => void);
+      return () => set.delete(handler as (payload: unknown) => void);
+    },
+  };
+}
 
-  const emit = useCallback((event: string, payload: unknown) => {
-    handlersRef.current.get(event)?.forEach((h) => h(payload));
-  }, []);
+export function RealtimeProvider({ children }: { children: ReactNode }) {
+  const [bus] = useState(createRealtimeBus);
 
   useEffect(() => {
     const supabase = createSupabaseBrowser();
@@ -57,13 +71,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'activity_log' },
-        (payload) => emit('activity.insert', payload.new),
+        (payload) => bus.emit('activity.insert', payload.new),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'cards' },
         (payload) =>
-          emit('cards.change', {
+          bus.emit('cards.change', {
             eventType: payload.eventType,
             new: Object.keys(payload.new ?? {}).length ? payload.new : null,
             old: payload.old ?? null,
@@ -72,24 +86,14 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'ai_jobs' },
-        (payload) => emit('ai_jobs.update', payload.new),
+        (payload) => bus.emit('ai_jobs.update', payload.new),
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [emit]);
-
-  const bus = useRef<RealtimeBus>({
-    subscribe(event, handler) {
-      const map = handlersRef.current;
-      if (!map.has(event)) map.set(event, new Set());
-      const set = map.get(event)!;
-      set.add(handler as (payload: unknown) => void);
-      return () => set.delete(handler as (payload: unknown) => void);
-    },
-  }).current;
+  }, [bus]);
 
   return (
     <RealtimeContext.Provider value={bus}>{children}</RealtimeContext.Provider>
@@ -103,7 +107,11 @@ export function useRealtimeEvent<E extends keyof RealtimeEvents>(
 ) {
   const bus = useContext(RealtimeContext);
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  // Update the ref in an effect (not during render) so the subscription
+  // always calls the latest handler without re-subscribing each render.
+  useEffect(() => {
+    handlerRef.current = handler;
+  });
 
   useEffect(() => {
     if (!bus) return;
