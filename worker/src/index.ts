@@ -10,6 +10,7 @@ import { log } from './log';
 import { startQueueLoop } from './queue';
 import { startCron } from './cron';
 import { startBot, telegramConfigured } from './telegram';
+import { startNotificationLoop } from './notifications';
 import { hasAnyAiProvider } from './ai-config';
 import { r2Configured } from './r2';
 
@@ -40,12 +41,14 @@ function main() {
   const stopQueue = startQueueLoop();
   const stopCron = startCron();
   const stopBot = startBot();
+  const stopNotifications = startNotificationLoop();
 
   const shutdown = (signal: string) => {
     log.info({ signal }, 'shutting down');
     stopQueue();
     stopCron();
     stopBot?.();
+    stopNotifications();
     process.exit(0);
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
