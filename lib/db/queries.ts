@@ -148,12 +148,16 @@ export async function gapRadar() {
     .eq('active', true);
   if (error) throw error;
 
+  // Covered = a scheduled/approved card with a concrete date in the next 5
+  // days. A NULL scheduled_at is NOT coverage (it isn't planned for any day) —
+  // matches the worker cron gap-radar (worker/src/cron.ts runGapRadar).
   const in5days = new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString();
   const { data: covered, error: e2 } = await supabase
     .from('cards')
     .select('client_id')
     .in('status', ['scheduled', 'approved'])
-    .or(`scheduled_at.lte.${in5days},scheduled_at.is.null`);
+    .not('scheduled_at', 'is', null)
+    .lte('scheduled_at', in5days);
   if (e2) throw e2;
 
   const coveredSet = new Set(covered.map((c) => c.client_id));

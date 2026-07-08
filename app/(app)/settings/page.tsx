@@ -37,13 +37,14 @@ export default async function SettingsPage() {
           .select('id, platform, handle, postiz_integration_id, clients(name)')
           .order('platform')
       : Promise.resolve({ data: null }),
+    // Recent successes carry the winning provider in result._meta.provider
+    // (worker/src/handlers/ai.ts) — group to show last success PER provider.
     supabase
       .from('ai_jobs')
-      .select('updated_at')
+      .select('updated_at, result')
       .eq('status', 'done')
       .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(50),
     ...JOB_STATUSES.map((status) =>
       supabase
         .from('ai_jobs')
@@ -52,8 +53,19 @@ export default async function SettingsPage() {
     ),
   ]);
 
-  const lastSuccessAt =
-    (lastDoneRes.data as { updated_at: string } | null)?.updated_at ?? null;
+  // Last success per AI provider (SPEC §12). Rows are already newest-first,
+  // so the first sighting of each provider is its latest success.
+  const doneRows = (lastDoneRes.data ?? []) as {
+    updated_at: string;
+    result: { _meta?: { provider?: string } } | null;
+  }[];
+  const providerLastSuccess = new Map<string, string>();
+  for (const row of doneRows) {
+    const provider = row.result?._meta?.provider;
+    if (provider && !providerLastSuccess.has(provider))
+      providerLastSuccess.set(provider, row.updated_at);
+  }
+  const lastSuccessAt = doneRows[0]?.updated_at ?? null;
 
   const accounts: PostizAccount[] = (
     (accountsRes.data ?? []) as unknown as {
@@ -122,10 +134,29 @@ export default async function SettingsPage() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-neutral-600">
-              {tr.settings.lastSuccess}:{' '}
-              {lastSuccessAt ? fmtIstanbul(lastSuccessAt) : tr.common.none}
-            </p>
+            <div>
+              <div className="mb-1 text-xs text-neutral-500">
+                {tr.settings.lastSuccess}
+              </div>
+              {providerLastSuccess.size === 0 ? (
+                <p className="text-xs text-neutral-600">
+                  {lastSuccessAt ? fmtIstanbul(lastSuccessAt) : tr.common.none}
+                </p>
+              ) : (
+                <ul className="space-y-0.5 text-xs text-neutral-400">
+                  {[...providerLastSuccess.entries()].map(([provider, at]) => (
+                    <li key={provider} className="flex justify-between gap-3">
+                      <span className="font-mono text-neutral-300">
+                        {provider}
+                      </span>
+                      <span className="text-neutral-500">
+                        {fmtIstanbul(at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </Panel>
 

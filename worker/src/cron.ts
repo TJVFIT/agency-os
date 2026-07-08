@@ -24,12 +24,16 @@ async function dispatchScheduled(): Promise<void> {
   if (!due?.length) return;
 
   for (const card of due) {
-    // Dedupe: skip if a publish job is already pending for this card.
+    // Dedupe: skip if a publish job for this card is pending OR has already
+    // failed terminally. Including 'error' is critical — otherwise a card
+    // that exhausted its 5 attempts stays 'scheduled' and the dispatcher
+    // would re-enqueue a fresh publish cycle every 60s forever (Postiz
+    // hammering + Telegram spam). A manager clears the errored job to retry.
     const { data: existing } = await db()
       .from('ai_jobs')
       .select('id')
       .eq('kind', 'publish')
-      .in('status', ['queued', 'running'])
+      .in('status', ['queued', 'running', 'error'])
       .contains('payload', { card_id: card.id });
     if (existing?.length) continue;
 

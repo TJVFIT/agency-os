@@ -77,6 +77,20 @@ export async function handlePublish(job: AiJob) {
     return { skipped: true, reason: 'not_scheduled' };
   }
 
+  // Re-verify an approval actually exists (SPEC §8) — defense in depth beyond
+  // the status gate. Both manager UI approvals (via the status-guard trigger)
+  // and magic-link approvals leave an activity_log 'card.status_changed → approved'.
+  const { count: approvals } = await db()
+    .from('activity_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('card_id', card_id)
+    .eq('action', 'card.status_changed')
+    .contains('detail', { to: 'approved' });
+  if (!approvals) {
+    log.warn({ card_id }, 'publish skipped: no approval record');
+    return { skipped: true, reason: 'no_approval' };
+  }
+
   // TR content is the v1 publish source.
   const { data: content } = await db()
     .from('card_contents')
@@ -128,11 +142,20 @@ export async function handlePublish(job: AiJob) {
     .eq('client_id', card.client_id)
     .in('platform', card.platforms);
 
+  const mapped = (accounts ?? []).filter((a) => a.postiz_integration_id);
+  if (mapped.length === 0) {
+    // No Postiz integration mapped for any of the card's platforms — do NOT
+    // silently mark it published. Throw so the queue retries/alerts and the
+    // gap is visible (admin must map integrations in settings).
+    throw new Error(
+      `no Postiz integration mapped for platforms ${card.platforms.join(', ')}`,
+    );
+  }
+
   const results: PostizResult[] = [];
-  for (const acc of accounts ?? []) {
-    if (!acc.postiz_integration_id) continue;
+  for (const acc of mapped) {
     results.push(
-      await postizCreatePost(acc.postiz_integration_id, body, mediaUrls),
+      await postizCreatePost(acc.postiz_integration_id!, body, mediaUrls),
     );
   }
 

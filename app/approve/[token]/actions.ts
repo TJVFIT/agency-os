@@ -54,14 +54,32 @@ export async function submitApprovalDecisions(
   if (!link || new Date(link.expires_at) < new Date())
     return { ok: false, error: 'expired' };
 
+  // Client languages decide which state is "awaiting approval".
+  const { data: client } = await admin
+    .from('clients')
+    .select('langs')
+    .eq('id', link.client_id)
+    .single();
+  const langs = client?.langs ?? ['tr'];
+  // A card may only be decided while it is genuinely awaiting approval —
+  // translated (multi-lang) or visual_ready (single-lang). This runs with the
+  // service role (bypassing the DB guard), so the gate MUST live here: without
+  // it a token holder could force any card to approved or knock a published
+  // card back into the pipeline. Mirrors awaitingApproval() in
+  // lib/approvals/service.ts.
+  const awaitingApproval = (status: string) =>
+    status === 'translated' ||
+    (status === 'visual_ready' && langs.length === 1);
+
   for (const d of decisions) {
-    // Card must belong to this link's client (defense in depth).
+    // Card must belong to this link's client AND be awaiting approval.
     const { data: card } = await admin
       .from('cards')
       .select('id, client_id, status')
       .eq('id', d.cardId)
       .single();
     if (!card || card.client_id !== link.client_id) continue;
+    if (!awaitingApproval(card.status)) continue;
 
     await admin.from('approval_actions').insert({
       approval_link_id: link.id,
@@ -74,7 +92,8 @@ export async function submitApprovalDecisions(
       await admin
         .from('cards')
         .update({ status: 'approved' })
-        .eq('id', d.cardId);
+        .eq('id', d.cardId)
+        .eq('status', card.status); // optimistic lock against concurrent change
       await admin.from('activity_log').insert({
         actor: null,
         client_id: link.client_id,
@@ -86,7 +105,8 @@ export async function submitApprovalDecisions(
       await admin
         .from('cards')
         .update({ status: 'copy_draft' })
-        .eq('id', d.cardId);
+        .eq('id', d.cardId)
+        .eq('status', card.status);
       if (d.comment) {
         await admin.from('comments').insert({
           card_id: d.cardId,

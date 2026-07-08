@@ -181,6 +181,12 @@ export async function rescheduleCard(
     .single();
   if (!card) return { ok: false, error: 'cardNotFound' };
 
+  // A scheduled card's date drives the publish dispatcher, so it must stay in
+  // the future — otherwise a drag to a past day would publish immediately.
+  // (due_at, a soft deadline on non-scheduled cards, has no such constraint.)
+  if (card.status === 'scheduled' && new Date(parsed.data.at) <= new Date())
+    return { ok: false, error: 'schedule_requires_future_date' };
+
   const update =
     card.status === 'scheduled'
       ? { scheduled_at: parsed.data.at }

@@ -68,10 +68,15 @@ export async function handleImageVariants(job: AiJob) {
     VariantName,
     { w: number; h: number },
   ][]) {
-    let pipeline = sharp(original).resize(size.w, size.h, {
-      fit: 'cover',
-      position: sharp.strategy.attention,
-    });
+    // thumb is 400w — width-constrained, aspect preserved (SPEC §7.1).
+    // The others are fixed-aspect cover-crops (attention-based).
+    let pipeline =
+      name === 'thumb'
+        ? sharp(original).resize(size.w, null, { fit: 'inside' })
+        : sharp(original).resize(size.w, size.h, {
+            fit: 'cover',
+            position: sharp.strategy.attention,
+          });
 
     // Watermark logo bottom-right at 6% width, 24px inset (skip thumb + no logo).
     if (logo && name !== 'thumb') {
@@ -80,8 +85,16 @@ export async function handleImageVariants(job: AiJob) {
         .resize(logoW, null, { fit: 'inside' })
         .png()
         .toBuffer();
+      const logoMeta = await sharp(resizedLogo).metadata();
+      const logoH = logoMeta.height ?? logoW;
+      // sharp: when top/left are given they take precedence over gravity, so
+      // compute the bottom-right inset explicitly (gravity alone can't inset).
       pipeline = pipeline.composite([
-        { input: resizedLogo, gravity: 'southeast', top: 24, left: 24 },
+        {
+          input: resizedLogo,
+          top: Math.max(0, size.h - logoH - 24),
+          left: Math.max(0, size.w - logoW - 24),
+        },
       ]);
     }
 

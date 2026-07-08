@@ -7,7 +7,7 @@
  */
 
 import type { AiJob, Enums } from '../../lib/db/types';
-import { db } from './supabase';
+import { db, logActivity } from './supabase';
 import { log } from './log';
 import { notifyAdmins } from './telegram';
 import {
@@ -76,6 +76,13 @@ async function failJob(job: AiJob, message: string): Promise<void> {
       { jobId: job.id, kind: job.kind, message },
       'job failed terminally',
     );
+    // Surface the failure in the live feed (CLAUDE.md rule 2). Publish jobs
+    // carry a card_id, so they render as publish.failed on that card.
+    const cardId = (job.payload as { card_id?: string })?.card_id ?? null;
+    await logActivity(
+      job.kind === 'publish' ? 'publish.failed' : 'ai.job_failed',
+      { cardId, detail: { kind: job.kind, error: message.slice(0, 300) } },
+    ).catch(() => {});
     await notifyAdmins(
       `⚠️ AI işi başarısız (${job.kind}): ${message.slice(0, 200)}`,
     ).catch(() => {});
