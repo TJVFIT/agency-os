@@ -1,0 +1,39 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+
+import { requireRole } from '@/lib/auth';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import type { Json } from '@/lib/db/types';
+import type { ActionResult } from '@/lib/actions/cards';
+
+const metricsSchema = z.object({
+  clientId: z.uuid(),
+  weekStart: z.iso.date(),
+  metrics: z.record(z.string(), z.unknown()),
+});
+
+/** Manual metrics entry on the client page (SPEC §8: v1 metrics are manual). */
+export async function saveReportMetrics(
+  input: z.input<typeof metricsSchema>,
+): Promise<ActionResult> {
+  await requireRole('admin', 'manager');
+  const parsed = metricsSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase.from('reports').upsert(
+    {
+      client_id: parsed.data.clientId,
+      week_start: parsed.data.weekStart,
+      metrics: parsed.data.metrics as Json,
+    },
+    { onConflict: 'client_id,week_start' },
+  );
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/clients/${parsed.data.clientId}`);
+  revalidatePath('/reports');
+  return { ok: true };
+}

@@ -546,6 +546,35 @@ export interface Database {
           },
         ];
       };
+      telegram_link_codes: {
+        Row: {
+          code: string;
+          profile_id: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          code: string;
+          profile_id: string;
+          expires_at: string;
+          created_at?: string;
+        };
+        Update: {
+          code?: string;
+          profile_id?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'telegram_link_codes_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       reports: {
         Row: {
           id: string;

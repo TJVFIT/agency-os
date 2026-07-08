@@ -1,27 +1,55 @@
 /**
- * Agency OS worker — entry point.
- *
- * Will host (per SPEC.md): the ai_jobs poll loop (§6.1), media pipeline
- * (§7), Telegram bot (§9), publish dispatcher (§8) and cron jobs (§11).
- *
- * Phase 0: skeleton only — verifies the env module loads and exits.
+ * Agency OS worker (SPEC §6–§11): ai_jobs poll loop, media/reel pipeline,
+ * Telegram bot, publish dispatcher and cron jobs. Each subsystem checks for
+ * its own configuration and disables itself with a log line rather than
+ * crashing the process, so the worker boots with only the Supabase core set.
  */
 
 import { workerEnv } from './env';
+import { log } from './log';
+import { startQueueLoop } from './queue';
+import { startCron } from './cron';
+import { startBot, telegramConfigured } from './telegram';
+import { hasAnyAiProvider } from './ai-config';
+import { r2Configured } from './r2';
 
 function main() {
+  let env;
   try {
-    const env = workerEnv();
-    console.log(
-      `[worker] env OK — supabase: ${new URL(env.NEXT_PUBLIC_SUPABASE_URL).host}, tz: ${env.TZ}`,
-    );
+    env = workerEnv();
   } catch (err) {
-    console.warn(
-      '[worker] env not configured yet (fine before SETUP.md Part A is done):',
+    log.error(
+      { err: err instanceof Error ? err.message : String(err) },
+      'worker env invalid — fill worker/.env (SETUP.md Part A). Exiting.',
     );
-    console.warn(err instanceof Error ? err.message : err);
+    process.exit(1);
   }
-  console.log('[worker] Phase 0 skeleton — no jobs to run yet.');
+
+  log.info(
+    {
+      supabase: new URL(env.NEXT_PUBLIC_SUPABASE_URL).host,
+      ai: hasAnyAiProvider(),
+      r2: r2Configured(),
+      telegram: telegramConfigured(),
+      postiz: Boolean(env.POSTIZ_URL),
+      tz: env.TZ,
+    },
+    'worker starting',
+  );
+
+  const stopQueue = startQueueLoop();
+  const stopCron = startCron();
+  const stopBot = startBot();
+
+  const shutdown = (signal: string) => {
+    log.info({ signal }, 'shutting down');
+    stopQueue();
+    stopCron();
+    stopBot?.();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 main();
