@@ -1,17 +1,19 @@
 /**
- * Date helpers — store UTC, display Europe/Istanbul (CLAUDE.md conventions).
+ * Date helpers — store UTC, display Europe/Istanbul in Turkish
+ * (CLAUDE.md conventions: UI language is Turkish, rule 7).
  */
 
+import { tr as trLocale } from 'date-fns/locale';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 export const APP_TZ = 'Europe/Istanbul';
 
-/** ISO/date → human string in Istanbul time. */
+/** ISO/date → human string in Istanbul time, Turkish month/day names. */
 export function fmtIstanbul(
   date: string | Date,
   pattern = 'd MMM yyyy HH:mm',
 ): string {
-  return formatInTimeZone(date, APP_TZ, pattern);
+  return formatInTimeZone(date, APP_TZ, pattern, { locale: trLocale });
 }
 
 export function fmtIstanbulDate(date: string | Date): string {

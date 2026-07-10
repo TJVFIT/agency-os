@@ -23,18 +23,24 @@ export function AppShell({
   logout,
   children,
   feed,
+  navItems = NAV_ITEMS,
 }: {
   profile: Profile;
   logout: () => Promise<void>;
   children: React.ReactNode;
   feed: React.ReactNode;
+  /** Override for the demo shell (/preview) — real app uses the default. */
+  navItems?: Array<{ href: string; label: string }>;
 }) {
   const pathname = usePathname();
 
   return (
     <div className="flex min-h-screen text-neutral-100">
       <nav className="flex w-14 flex-col items-center border-r border-white/[0.06] bg-white/[0.015] py-4 md:w-52 md:items-stretch md:px-3">
-        <Link href="/dashboard" className="mb-6 px-2 text-center md:text-left">
+        <Link
+          href={navItems[0]?.href ?? '/dashboard'}
+          className="mb-6 px-2 text-center md:text-left"
+        >
           <span className="hidden bg-gradient-to-r from-white via-white to-neutral-400 bg-clip-text text-sm font-bold tracking-tight text-transparent md:inline">
             {tr.appName}
           </span>
@@ -43,7 +49,7 @@ export function AppShell({
           </span>
         </Link>
         <ul className="stagger-children flex flex-1 flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active = pathname.startsWith(item.href);
             return (
               <li key={item.href}>
