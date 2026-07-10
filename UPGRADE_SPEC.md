@@ -141,6 +141,18 @@ report roll-up (§7).
   (Postiz analytics — Phase 5). Multi-language UI (en.ts shape ready).
   Route optimization beyond nearest-neighbor.
 
+## 11a. NEXT UP (planned with the user, NOT built yet — v3)
+
+**AI video/photo editing on demand.** The client writes a prompt and uploads
+raw footage/photos; the agency AI returns a fully edited, ready-to-post
+video. Build on what exists: R2 upload flow (§7.1-v1), `render_reel`
+pipeline (whisper + ASS + FFmpeg), `poster` image handler. New pieces:
+`edit_video` ai_job kind — LLM turns the prompt into a structured edit spec
+(cuts, order, text overlays, music bed, aspect) validated by zod → worker
+compiles the spec into an FFmpeg filter graph; photo edits reuse sharp +
+Gemini image editing. Portal gains an "Editle" tab (prompt + upload).
+Scheduled for the next working session.
+
 ## 11. New env
 
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`

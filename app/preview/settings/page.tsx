@@ -11,6 +11,8 @@ import { useState } from 'react';
 import { Button, Panel, PageHeader } from '@/components/ui';
 import { tr } from '@/lib/i18n/tr';
 
+import { useDemoStore } from '../_demo/store';
+
 type AutomationMode = 'suggest' | 'semi' | 'full';
 type AutomationDomain = keyof typeof tr.automation.domains;
 
@@ -51,9 +53,9 @@ function ModeSegments({
             role="radio"
             aria-checked={active}
             onClick={() => !active && onChange(mode)}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] ${
               active
-                ? 'bg-white/[0.12] text-neutral-50 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.4)]'
+                ? 'bg-white/[0.12] text-neutral-50 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.08)]'
                 : 'text-neutral-500 hover:text-neutral-200'
             }`}
           >
@@ -143,6 +145,25 @@ function PushPanel() {
   );
 }
 
+/** Danger zone: wipe everything the visitor entered into the demo. */
+function DangerZone() {
+  const { resetAll } = useDemoStore();
+
+  return (
+    <div className="animate-enter mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/15 bg-red-500/[0.04] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-red-500/25">
+      <span className="text-xs text-neutral-500">{tr.demo.badge}</span>
+      <Button
+        variant="danger"
+        onClick={() => {
+          if (window.confirm(tr.demo.resetConfirm)) resetAll();
+        }}
+      >
+        {tr.demo.resetDemo}
+      </Button>
+    </div>
+  );
+}
+
 export default function PreviewSettingsPage() {
   return (
     <div>
@@ -151,6 +172,7 @@ export default function PreviewSettingsPage() {
         <AutomationShowcase />
         <PushPanel />
       </div>
+      <DangerZone />
     </div>
   );
 }

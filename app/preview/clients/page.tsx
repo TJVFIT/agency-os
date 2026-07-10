@@ -1,289 +1,447 @@
 'use client';
 
 /**
- * /preview/clients — static demo of the client roster plus one expanded
- * brand profile (Ustanın Yeri) with a live-feeling idea inbox.
- * No backend: accept/reject on ideas is local state only.
+ * /preview/clients — the onboarding heart of the live demo workspace.
+ * Starts completely empty: a welcome hero invites the visitor to add their
+ * own company, then the editor connects their social accounts. Everything
+ * persists through the demo store (localStorage) — no example data anywhere.
  */
 
 import { useState } from 'react';
 
-import { Button, Label, PageHeader, Panel } from '@/components/ui';
+import {
+  Button,
+  Field,
+  Input,
+  Label,
+  PageHeader,
+  Panel,
+  Select,
+} from '@/components/ui';
+import { PLATFORMS, type Platform } from '@/lib/db/types';
 import { tr } from '@/lib/i18n/tr';
-import { DEMO_CLIENTS, DEMO_IDEAS } from '../_demo/data';
 
-type IdeaResolution = 'accepted' | 'rejected';
+import { useDemoStore, type StoreClient } from '../_demo/store';
 
-/** Brand profile demo content for Ustanın Yeri — demo-local data. */
-const BRAND_VOICE =
-  'Samimi, mahalle ustası tonunda; işine güvenen ama mütevazı. Ankara ağzına yakın, kısa ve net cümleler. Övgüyü müşteri yapar, biz işi anlatırız.';
+const CHIP =
+  'inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[11px] font-medium text-neutral-300';
 
-const TONE_RULES = [
-  'Kısa cümleler',
-  'Sen dili',
-  'Yerel referanslar',
-  'Abartı yok',
-  'Emoji az ve yerinde',
-];
+const ICON_BTN =
+  'flex h-6 w-6 items-center justify-center rounded-full text-neutral-500 transition-colors duration-300 hover:bg-white/[0.06] hover:text-neutral-200';
 
-const BANNED_WORDS = ['enfes', 'lezzet şöleni', 'damak çatlatan', 'efsane'];
+const LANGS = ['tr', 'en'] as const;
 
-const HASHTAG_BANK = [
-  '#ustaninyeri',
-  '#ankarakebap',
-  '#cankaya',
-  '#izgara',
-  '#ankarayemek',
-  '#kebapustasi',
-];
+const DEFAULT_COLOR = '#818cf8';
 
-const SOCIAL_ACCOUNTS: {
-  platform: keyof typeof tr.platforms;
-  handle: string;
-}[] = [
-  { platform: 'instagram', handle: '@ustaninyeri' },
-  { platform: 'facebook', handle: 'Ustanın Yeri Kebap' },
-  { platform: 'tiktok', handle: '@ustaninyeri' },
-];
+/** Connected social accounts — live add/remove against the store. */
+function AccountsManager({ client }: { client: StoreClient }) {
+  const store = useDemoStore();
+  const [platform, setPlatform] = useState<Platform>('instagram');
+  const [handle, setHandle] = useState('');
 
-const CHIP_BASE =
-  'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium';
+  const cleanHandle = handle.trim().replace(/^@+/, '');
 
-const IDEA_CHIP: Record<'new' | 'refined' | 'accepted' | 'rejected', string> = {
-  new: 'border-white/10 bg-white/[0.05] text-neutral-300',
-  refined: 'border-indigo-400/20 bg-indigo-400/10 text-indigo-200',
-  accepted: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
-  rejected: 'border-red-400/20 bg-red-400/10 text-red-200',
-};
-
-const NEUTRAL_CHIP = 'border-white/10 bg-white/[0.05] text-neutral-300';
-const RED_CHIP = 'border-red-400/20 bg-red-400/10 text-red-200';
-const SKY_CHIP = 'border-sky-400/20 bg-sky-400/10 text-sky-200';
-const ACTIVE_CHIP = 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
-
-/** Fikir kutusu — DEMO_IDEAS rows; accept/reject fades the row into a
- *  resolved chip state. */
-function IdeaInbox() {
-  const [fading, setFading] = useState<Record<string, boolean>>({});
-  const [resolved, setResolved] = useState<Record<string, IdeaResolution>>({});
-
-  function resolve(id: string, resolution: IdeaResolution) {
-    setFading((p) => ({ ...p, [id]: true }));
-    setTimeout(() => {
-      setResolved((p) => ({ ...p, [id]: resolution }));
-      setFading((p) => {
-        const next = { ...p };
-        delete next[id];
-        return next;
-      });
-    }, 450);
+  function add() {
+    if (!cleanHandle) return;
+    store.addAccount(client.id, { platform, handle: cleanHandle });
+    setHandle('');
   }
 
   return (
-    <section>
-      <Label>{tr.portal.ideasInbox}</Label>
-      <ul className="space-y-2">
-        {DEMO_IDEAS.map((idea) => {
-          const resolution = resolved[idea.id];
-          return (
-            <li
-              key={idea.id}
-              className={`rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-                fading[idea.id] ? 'scale-[0.97] opacity-0' : ''
-              } ${resolution ? 'opacity-60' : ''}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-sm font-medium text-neutral-100">
-                  {idea.title}
-                </p>
-                <span
-                  className={`${CHIP_BASE} shrink-0 ${
-                    IDEA_CHIP[resolution ?? idea.status]
-                  }`}
-                >
-                  {tr.portal.ideaStatuses[resolution ?? idea.status]}
-                </span>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-                {idea.body}
-              </p>
+    <section className="mt-5 border-t border-white/[0.06] pt-4">
+      <Label>{tr.demo.connectAccounts}</Label>
+      <p className="mb-3 text-xs leading-relaxed text-neutral-500">
+        {tr.demo.accountsHelp}
+      </p>
 
-              {idea.refined && (
-                <div className="mt-2 rounded-lg border border-indigo-400/15 bg-indigo-400/[0.06] p-2.5">
-                  <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.1em] text-indigo-300/80">
-                    {tr.portal.refinedSummary}
-                  </p>
-                  <p className="text-xs font-medium text-neutral-200">
-                    {idea.refined.title}
-                  </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-400">
-                    {idea.refined.summary}
-                  </p>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    <span className={`${CHIP_BASE} ${NEUTRAL_CHIP}`}>
-                      {idea.refined.goal}
-                    </span>
-                    <span className={`${CHIP_BASE} ${IDEA_CHIP.refined}`}>
-                      {
-                        tr.cardTypes[
-                          idea.refined
-                            .suggested_type as keyof typeof tr.cardTypes
-                        ]
-                      }
-                    </span>
-                  </div>
-                </div>
-              )}
+      {client.accounts.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {client.accounts.map((a) => (
+            <span key={`${a.platform}-${a.handle}`} className={CHIP}>
+              {tr.platforms[a.platform]}
+              <span className="font-mono text-neutral-100">@{a.handle}</span>
+              <button
+                type="button"
+                aria-label={tr.common.remove}
+                onClick={() =>
+                  store.removeAccount(client.id, a.platform, a.handle)
+                }
+                className="-mr-0.5 flex h-4 w-4 items-center justify-center rounded-full text-neutral-500 transition-colors duration-300 hover:bg-white/10 hover:text-red-300"
+              >
+                ✗
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
-              {!resolution && (
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    icon="✓"
-                    onClick={() => resolve(idea.id, 'accepted')}
-                  >
-                    {tr.portal.acceptIdea}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    className="flex-1"
-                    icon="✗"
-                    onClick={() => resolve(idea.id, 'rejected')}
-                  >
-                    {tr.portal.rejectIdea}
-                  </Button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="block">
+          <Label>{tr.clients.platform}</Label>
+          <Select
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value as Platform)}
+          >
+            {PLATFORMS.map((p) => (
+              <option key={p} value={p}>
+                {tr.platforms[p]}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="block min-w-40 flex-1">
+          <Label>{tr.clients.handle}</Label>
+          <Input
+            value={handle}
+            placeholder={tr.clients.handle}
+            maxLength={60}
+            onChange={(e) => setHandle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+        </label>
+        <Button
+          variant="secondary"
+          icon="+"
+          disabled={!cleanHandle}
+          onClick={add}
+        >
+          {tr.demo.addAccount}
+        </Button>
+      </div>
     </section>
   );
 }
 
+/** Add/edit form — creating hands off to editing so accounts come next. */
+function ClientEditor({
+  client,
+  onCreated,
+  onClose,
+}: {
+  client?: StoreClient;
+  onCreated: (id: string) => void;
+  onClose: () => void;
+}) {
+  const store = useDemoStore();
+  const [name, setName] = useState(client?.name ?? '');
+  const [industry, setIndustry] = useState(client?.industry ?? '');
+  const [district, setDistrict] = useState(client?.district ?? '');
+  const [color, setColor] = useState(client?.colors.primary ?? DEFAULT_COLOR);
+  const [langs, setLangs] = useState<string[]>(client?.langs ?? ['tr']);
+
+  const valid = name.trim().length > 0;
+
+  function toggleLang(lang: string) {
+    setLangs((p) =>
+      p.includes(lang) ? p.filter((l) => l !== lang) : [...p, lang],
+    );
+  }
+
+  function save() {
+    if (!valid) return;
+    const patch = {
+      name: name.trim(),
+      industry: industry.trim(),
+      district: district.trim(),
+      colors: { primary: color },
+      langs: langs.length > 0 ? langs : ['tr'],
+    };
+    if (client) {
+      store.updateClient(client.id, patch);
+      onClose();
+    } else {
+      const created = store.addClient({ ...patch, accounts: [] });
+      onCreated(created.id);
+    }
+  }
+
+  return (
+    <Panel
+      title={
+        client
+          ? `${client.name} — ${tr.clients.brandProfile}`
+          : tr.clients.newClient
+      }
+      className="animate-enter mb-4"
+      actions={
+        <button
+          onClick={onClose}
+          aria-label={tr.common.close}
+          className={ICON_BTN}
+        >
+          ✕
+        </button>
+      }
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label={tr.demo.companyName}>
+          <Input
+            autoFocus
+            value={name}
+            maxLength={80}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </Field>
+        <Field label={tr.clients.industry}>
+          <Input
+            value={industry}
+            maxLength={60}
+            onChange={(e) => setIndustry(e.target.value)}
+          />
+        </Field>
+        <Field label={tr.production.district}>
+          <Input
+            value={district}
+            maxLength={60}
+            onChange={(e) => setDistrict(e.target.value)}
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <Label>{tr.clients.primaryColor}</Label>
+            <span className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-6 w-9 cursor-pointer appearance-none rounded-md border-none bg-transparent p-0 [&::-moz-color-swatch]:rounded-md [&::-moz-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border-none"
+              />
+              <span className="font-mono text-xs text-neutral-400">
+                {color}
+              </span>
+            </span>
+          </label>
+          <div>
+            <Label>{tr.clients.langs}</Label>
+            <div className="flex gap-1.5">
+              {LANGS.map((lang) => (
+                <label
+                  key={lang}
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium uppercase transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                    langs.includes(lang)
+                      ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200'
+                      : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/20'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={langs.includes(lang)}
+                    onChange={() => toggleLang(lang)}
+                  />
+                  {lang}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {client && <AccountsManager client={client} />}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>
+          {tr.common.cancel}
+        </Button>
+        <Button variant="primary" disabled={!valid} onClick={save}>
+          {client ? tr.common.save : tr.common.create}
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
 export default function PreviewClientsPage() {
-  const detail = DEMO_CLIENTS.find((c) => c.slug === 'ustanin-yeri')!;
+  const store = useDemoStore();
+  const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  if (!store.hydrated) {
+    return (
+      <div className="animate-pulse space-y-4">
+        <div className="h-7 w-36 rounded-lg bg-white/[0.04]" />
+        <div className="h-56 rounded-2xl bg-white/[0.03]" />
+      </div>
+    );
+  }
+
+  const editing = editingId
+    ? store.clients.find((c) => c.id === editingId)
+    : undefined;
+  const editorOpen = creating || Boolean(editing);
+  const isEmpty = store.clients.length === 0;
+
+  function openCreate() {
+    setEditingId(null);
+    setCreating(true);
+  }
+
+  function openEdit(id: string) {
+    setCreating(false);
+    setEditingId(id);
+  }
+
+  function closeEditor() {
+    setCreating(false);
+    setEditingId(null);
+  }
+
+  function remove(client: StoreClient) {
+    if (!window.confirm(tr.clients.deleteConfirm)) return;
+    store.removeClient(client.id);
+    if (editingId === client.id) closeEditor();
+  }
 
   return (
     <div>
-      <PageHeader title={tr.clients.title} />
+      <PageHeader title={tr.clients.title}>
+        {!isEmpty && !editorOpen && (
+          <Button variant="primary" icon="+" onClick={openCreate}>
+            {tr.clients.newClient}
+          </Button>
+        )}
+      </PageHeader>
 
-      {/* Client roster grid */}
-      <ul className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {DEMO_CLIENTS.map((c) => (
-          <li key={c.id}>
-            <Panel className={c.id === detail.id ? 'ring-1 ring-white/10' : ''}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{
-                      background: c.colors.primary,
-                      boxShadow: `0 0 10px ${c.colors.primary}99`,
-                    }}
-                  />
-                  <h2 className="truncate text-sm font-semibold tracking-tight text-neutral-100">
-                    {c.name}
-                  </h2>
-                </div>
-                <span className={`${CHIP_BASE} shrink-0 ${ACTIVE_CHIP}`}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                  {tr.clients.active}
-                </span>
-              </div>
-
-              <p className="mt-2 text-xs text-neutral-500">
-                {c.industry} · {c.district}
-              </p>
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {c.langs.map((l) => (
-                  <span
-                    key={l}
-                    className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-300"
-                  >
-                    {l}
-                  </span>
-                ))}
-              </div>
-            </Panel>
-          </li>
-        ))}
-      </ul>
-
-      {/* Expanded brand profile for Ustanın Yeri */}
-      <Panel
-        title={`${detail.name} — ${tr.clients.brandProfile}`}
-        className="animate-enter mt-4"
-      >
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="space-y-5">
-            <section>
-              <Label>{tr.clients.voice}</Label>
-              <p className="text-sm leading-relaxed text-neutral-300">
-                {BRAND_VOICE}
-              </p>
-            </section>
-
-            <section>
-              <Label>{tr.clients.toneRules}</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {TONE_RULES.map((rule) => (
-                  <span key={rule} className={`${CHIP_BASE} ${NEUTRAL_CHIP}`}>
-                    {rule}
-                  </span>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <Label>{tr.clients.bannedWords}</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {BANNED_WORDS.map((word) => (
-                  <span key={word} className={`${CHIP_BASE} ${RED_CHIP}`}>
-                    {word}
-                  </span>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <Label>{tr.clients.hashtagBank}</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {HASHTAG_BANK.map((tag) => (
-                  <span key={tag} className={`${CHIP_BASE} ${SKY_CHIP}`}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <Label>{tr.clients.socialAccounts}</Label>
-              <ul className="space-y-1.5">
-                {SOCIAL_ACCOUNTS.map((a) => (
-                  <li
-                    key={a.platform}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2"
-                  >
-                    <span className="text-xs text-neutral-400">
-                      {tr.platforms[a.platform]}
-                    </span>
-                    <span className="font-mono text-xs text-neutral-200">
-                      {a.handle}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+      {/* Onboarding hero — the workspace starts empty on purpose. */}
+      {isEmpty && !editorOpen && (
+        <section className="animate-enter rounded-2xl bg-gradient-to-b from-white/[0.12] via-white/[0.05] to-white/[0.02] p-px shadow-[0_24px_64px_-16px_rgba(0,0,0,0.7)]">
+          <div className="relative flex flex-col items-center gap-4 overflow-hidden rounded-[calc(1rem-1px)] bg-[#0a0a0b] px-6 py-20 text-center">
+            {/* Radial brand accent — pure CSS, sits behind the content. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(32rem_18rem_at_50%_-4rem,rgba(129,140,248,0.14),transparent_70%)]"
+            />
+            <span className="relative inline-flex items-center gap-2 rounded-full border border-indigo-300/25 bg-indigo-400/[0.08] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-200">
+              <span className="h-1 w-1 rounded-full bg-indigo-300 shadow-[0_0_8px_rgba(165,180,252,0.9)]" />
+              {tr.appName}
+            </span>
+            <span
+              aria-hidden
+              className="relative flex h-14 w-14 items-center justify-center rounded-full border border-indigo-300/20 bg-indigo-400/10 text-2xl shadow-[0_0_32px_rgba(129,140,248,0.25),inset_0_1px_0_rgba(255,255,255,0.1)]"
+            >
+              ✨
+            </span>
+            <h2 className="relative text-2xl font-semibold tracking-tight text-neutral-50">
+              {tr.demo.welcomeTitle}
+            </h2>
+            <p className="relative max-w-md text-sm leading-relaxed text-neutral-400">
+              {tr.demo.welcomeBody}
+            </p>
+            <Button
+              variant="primary"
+              icon="+"
+              className="relative mt-1 px-5 py-2 text-base shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_4px_16px_rgba(255,255,255,0.08),0_0_48px_-8px_rgba(165,180,252,0.5)]"
+              onClick={openCreate}
+            >
+              {tr.demo.addClientCta}
+            </Button>
           </div>
+        </section>
+      )}
 
-          <IdeaInbox />
-        </div>
-      </Panel>
+      {editorOpen && (
+        <ClientEditor
+          key={editing?.id ?? 'new'}
+          client={editing}
+          onCreated={(id) => {
+            setCreating(false);
+            setEditingId(id);
+          }}
+          onClose={closeEditor}
+        />
+      )}
+
+      {!isEmpty && (
+        <ul className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {store.clients.map((c) => (
+            <li key={c.id}>
+              <Panel
+                className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
+                  c.id === editingId ? 'ring-1 ring-indigo-300/20' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      aria-hidden
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{
+                        background: c.colors.primary,
+                        boxShadow: `0 0 10px ${c.colors.primary}99`,
+                      }}
+                    />
+                    <h2 className="truncate text-sm font-semibold tracking-tight text-neutral-100">
+                      {c.name}
+                    </h2>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      onClick={() => openEdit(c.id)}
+                      aria-label={tr.common.edit}
+                      title={tr.common.edit}
+                      className={ICON_BTN}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      onClick={() => remove(c)}
+                      aria-label={tr.common.delete}
+                      title={tr.common.delete}
+                      className={`${ICON_BTN} hover:text-red-300`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {(c.industry || c.district) && (
+                  <p className="mt-2 text-xs text-neutral-500">
+                    {[c.industry, c.district].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {c.accounts.length === 0 ? (
+                    <button
+                      onClick={() => openEdit(c.id)}
+                      className="rounded-full border border-dashed border-white/15 px-2.5 py-0.5 text-[11px] font-medium text-neutral-500 transition-colors duration-300 hover:border-white/30 hover:text-neutral-300"
+                    >
+                      + {tr.demo.addAccount}
+                    </button>
+                  ) : (
+                    c.accounts.map((a) => (
+                      <span key={`${a.platform}-${a.handle}`} className={CHIP}>
+                        {tr.platforms[a.platform]}
+                        <span className="font-mono text-neutral-100">
+                          @{a.handle}
+                        </span>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {c.langs.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {c.langs.map((l) => (
+                      <span
+                        key={l}
+                        className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-300"
+                      >
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
