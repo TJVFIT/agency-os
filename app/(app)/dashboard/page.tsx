@@ -4,15 +4,24 @@ import { CardTile } from '@/components/card-tile';
 import { NewCardDialog } from '@/components/new-card-dialog';
 import { PageHeader, Panel } from '@/components/ui';
 import { getSessionProfile } from '@/lib/auth';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import { istanbulDateString, istanbulToUtc } from '@/lib/dates';
 import {
   gapRadar,
   listActivity,
   listClients,
   listProfiles,
   myQueue,
+  type CardWithClient,
 } from '@/lib/db/queries';
 import { interpolate, tr } from '@/lib/i18n/tr';
 
+import { MissingWork } from './_components/missing-work';
+import {
+  SuggestionsPanel,
+  type SuggestionItem,
+} from './_components/suggestions-panel';
+import { TodayPlan, type TodayShootItem } from './_components/today-plan';
 import { WorkerStatus } from './_components/worker-status';
 
 /**
@@ -27,13 +36,79 @@ export default async function DashboardPage() {
   const { userId, role } = session;
   const isManager = role === 'manager' || role === 'admin';
 
-  const [queue, gaps, clients, profiles, activity] = await Promise.all([
-    myQueue(userId, role),
-    gapRadar(),
-    listClients({ activeOnly: true }),
-    listProfiles(),
-    listActivity(50),
-  ]);
+  // Today's bounds in Istanbul wall-clock → UTC (store UTC, display TR).
+  const todayStr = istanbulDateString();
+  const dayStart = istanbulToUtc(`${todayStr}T00:00:00`).toISOString();
+  const dayEnd = istanbulToUtc(`${todayStr}T23:59:59.999`).toISOString();
+
+  const supabase = await createSupabaseServer();
+  const [queue, gaps, clients, profiles, activity, suggRes, dueRes, shootRes] =
+    await Promise.all([
+      myQueue(userId, role),
+      gapRadar(),
+      listClients({ activeOnly: true }),
+      listProfiles(),
+      listActivity(50),
+      // Öneriler inbox: pending worker suggestions (UPGRADE_SPEC §9).
+      supabase
+        .from('suggestions')
+        .select('id, title, domain, card_id, clients(name)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(30),
+      // Bugünün planı: my cards due today or overdue (UPGRADE_SPEC §6).
+      supabase
+        .from('cards')
+        .select('*, clients(id, name, slug, langs, colors)')
+        .eq('assignee', userId)
+        .not('status', 'in', '(published,archived)')
+        .not('due_at', 'is', null)
+        .lte('due_at', dayEnd)
+        .order('due_at', { ascending: true }),
+      // …plus today's shoots where I'm in the crew.
+      supabase
+        .from('shoots')
+        .select('id, title, starts_at, ends_at, clients(name)')
+        .contains('crew', [userId])
+        .neq('status', 'cancelled')
+        .gte('starts_at', dayStart)
+        .lte('starts_at', dayEnd)
+        .order('starts_at', { ascending: true }),
+    ]);
+
+  const suggestions: SuggestionItem[] = (
+    (suggRes.data ?? []) as unknown as Array<{
+      id: string;
+      title: string;
+      domain: string;
+      card_id: string | null;
+      clients: { name: string } | null;
+    }>
+  ).map((s) => ({
+    id: s.id,
+    title: s.title,
+    domain: s.domain,
+    cardId: s.card_id,
+    clientName: s.clients?.name ?? null,
+  }));
+  const missingWork = suggestions.filter((s) => s.domain === 'missing_work');
+
+  const dueCards = (dueRes.data ?? []) as CardWithClient[];
+  const todayShoots: TodayShootItem[] = (
+    (shootRes.data ?? []) as unknown as Array<{
+      id: string;
+      title: string;
+      starts_at: string;
+      ends_at: string;
+      clients: { name: string } | null;
+    }>
+  ).map((s) => ({
+    id: s.id,
+    title: s.title,
+    starts_at: s.starts_at,
+    ends_at: s.ends_at,
+    clientName: s.clients?.name ?? null,
+  }));
 
   const lastHeartbeat =
     activity.find((row) => row.action === 'worker.heartbeat')?.created_at ??
@@ -102,6 +177,22 @@ export default async function DashboardPage() {
               ))}
             </ul>
           )}
+        </Panel>
+
+        <Panel title={tr.automation.suggestionsInbox} className="lg:col-span-2">
+          <SuggestionsPanel suggestions={suggestions} canResolve={isManager} />
+        </Panel>
+
+        <Panel title={tr.automation.todayPlan}>
+          <TodayPlan
+            cards={dueCards}
+            shoots={todayShoots}
+            overdueBefore={dayStart}
+          />
+        </Panel>
+
+        <Panel title={tr.automation.missingWork} className="lg:col-span-3">
+          <MissingWork items={missingWork} />
         </Panel>
       </div>
     </div>

@@ -58,6 +58,23 @@ export const reportResultSchema = z.object({
 });
 export type ReportResult = z.infer<typeof reportResultSchema>;
 
+export const ideaRefineResultSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  goal: z.string(),
+  suggested_type: z.enum(['post', 'reel', 'story']),
+});
+export type IdeaRefineResult = z.infer<typeof ideaRefineResultSchema>;
+
+export const scenarioResultSchema = z.object({
+  scenario: z.string(),
+  shot_list: z.array(z.string()),
+  copy_brief: z.string(),
+  needs_shoot: z.boolean(),
+  suggested_platforms: z.array(z.string()),
+});
+export type ScenarioResult = z.infer<typeof scenarioResultSchema>;
+
 export const RESULT_SCHEMAS = {
   caption: captionResultSchema,
   translate: translateResultSchema,

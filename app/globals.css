@@ -1,8 +1,23 @@
 @import 'tailwindcss';
 
+/* ── Agency OS design system — Ethereal Glass (dark, dense, premium) ────────
+   OLED base with layered translucent surfaces, hairline borders, soft glows,
+   spring-physics motion. Tool-density preserved: generous rhythm, no
+   marketing-scale whitespace. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #050505;
+  --foreground: #ededed;
+
+  /* surfaces (layered translucency over OLED black) */
+  --surface-1: rgba(255, 255, 255, 0.03);
+  --surface-2: rgba(255, 255, 255, 0.055);
+  --hairline: rgba(255, 255, 255, 0.07);
+  --hairline-strong: rgba(255, 255, 255, 0.14);
+
+  /* motion */
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 }
 
 @theme inline {
@@ -10,17 +25,138 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), 'Segoe UI', system-ui, sans-serif;
+  font-feature-settings:
+    'ss01' on,
+    'cv01' on;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── atmosphere: fixed mesh glow + film grain (GPU-safe: fixed layers) ───── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      42rem 42rem at 12% -8%,
+      rgba(99, 102, 241, 0.07),
+      transparent 60%
+    ),
+    radial-gradient(
+      36rem 36rem at 105% 15%,
+      rgba(16, 185, 129, 0.05),
+      transparent 60%
+    ),
+    radial-gradient(
+      50rem 40rem at 50% 115%,
+      rgba(56, 189, 248, 0.04),
+      transparent 65%
+    );
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* app content sits above the atmosphere layers */
+body > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* ── scrollbars, selection, focus ────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+::selection {
+  background: rgba(129, 140, 248, 0.35);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(165, 180, 252, 0.55);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── entry choreography ──────────────────────────────────────────────────── */
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.animate-enter {
+  animation: enter-up 0.7s var(--ease-fluid) both;
+}
+
+/* stagger children: apply to a list container */
+.stagger-children > * {
+  animation: enter-up 0.6s var(--ease-fluid) both;
+}
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0.03s;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 0.13s;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 0.23s;
+}
+.stagger-children > *:nth-child(n + 6) {
+  animation-delay: 0.28s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter,
+  .stagger-children > * {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

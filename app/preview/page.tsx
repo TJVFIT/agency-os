@@ -209,6 +209,137 @@ export default function PreviewPage() {
             </p>
           </Panel>
         </div>
+
+        {/* ---- v2 demo: production ---- */}
+        <h2 className="mb-3 mt-8 text-lg font-semibold text-neutral-50">
+          {tr.nav.production} — {tr.production.shoots}
+        </h2>
+        <div className="space-y-2">
+          {[
+            {
+              title: 'Yaz menüsü çekimi',
+              client: 'Ustanın Yeri',
+              when: '10 Tem 10:00–13:30',
+              crew: 'Elif + Mert',
+              vehicle: 'Beyaz Doblo',
+              status: tr.production.statuses.confirmed,
+              chip: 'border-sky-800 bg-sky-950/60 text-sky-300',
+            },
+            {
+              title: 'Barista arkası reel çekimi',
+              client: 'Kavis Kahve',
+              when: '11 Tem 14:00–17:30',
+              crew: 'Mert',
+              vehicle: '—',
+              status: tr.production.statuses.planned,
+              chip: 'border-neutral-700 bg-neutral-900 text-neutral-300',
+            },
+          ].map((s) => (
+            <div
+              key={s.title}
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm"
+            >
+              <span
+                className={`rounded-full border px-2 py-0.5 text-xs ${s.chip}`}
+              >
+                {s.status}
+              </span>
+              <span className="font-medium text-neutral-100">{s.title}</span>
+              <span className="text-neutral-500">{s.client}</span>
+              <span className="text-neutral-400">🗓 {s.when}</span>
+              <span className="text-neutral-400">
+                {tr.production.crew}: {s.crew}
+              </span>
+              <span className="text-neutral-400">
+                {tr.production.vehicle}: {s.vehicle}
+              </span>
+            </div>
+          ))}
+          <p className="text-xs text-neutral-600">
+            {tr.production.defaultBlock}
+          </p>
+        </div>
+
+        {/* ---- v2 demo: finance ---- */}
+        <h2 className="mb-3 mt-8 text-lg font-semibold text-neutral-50">
+          {tr.nav.finance}
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel title={`${tr.finance.packages} — ${tr.finance.quotaUsage}`}>
+            <div className="space-y-3">
+              {[
+                { label: 'Ustanın Yeri · Gönderi', used: 9, quota: 12 },
+                { label: 'Ustanın Yeri · Reel', used: 4, quota: 4 },
+                { label: 'Kavis Kahve · Gönderi', used: 3, quota: 8 },
+              ].map((q) => (
+                <div key={q.label}>
+                  <div className="mb-1 flex justify-between text-xs text-neutral-400">
+                    <span>{q.label}</span>
+                    <span className={q.used >= q.quota ? 'text-red-400' : ''}>
+                      {q.used}/{q.quota}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded bg-neutral-800">
+                    <div
+                      className={`h-1.5 rounded ${q.used >= q.quota ? 'bg-red-500' : 'bg-sky-500'}`}
+                      style={{
+                        width: `${Math.min(100, (q.used / q.quota) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+          <Panel title={tr.finance.payments}>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between rounded-md border border-red-900 bg-red-950/40 px-3 py-2">
+                <span className="text-red-300">
+                  Napoli Sokağı — Haziran paketi
+                </span>
+                <span className="text-red-300">
+                  ₺18.000 · {tr.finance.overdue}
+                </span>
+              </div>
+              <div className="flex justify-between rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2">
+                <span className="text-neutral-300">
+                  Kavis Kahve — {tr.finance.extraWork}: menü afişi
+                </span>
+                <span className="text-neutral-400">₺2.500 · 15 Tem</span>
+              </div>
+            </div>
+          </Panel>
+        </div>
+
+        {/* ---- v2 demo: automation ---- */}
+        <h2 className="mb-3 mt-8 text-lg font-semibold text-neutral-50">
+          {tr.automation.suggestionsInbox}
+        </h2>
+        <div className="space-y-2">
+          {[
+            {
+              domain: tr.automation.domains.publish,
+              text: '"Hafta sonu brunch" yayına hazır — onaylıyor musun?',
+            },
+            {
+              domain: tr.automation.domains.post_shoot,
+              text: 'Yaz menüsü çekimi bitti — kurgu/metin/kontrol görevlerini açayım mı?',
+            },
+          ].map((s) => (
+            <div
+              key={s.text}
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm"
+            >
+              <span className="rounded-full border border-amber-800 bg-amber-950/60 px-2 py-0.5 text-xs text-amber-300">
+                {s.domain}
+              </span>
+              <span className="flex-1 text-neutral-200">{s.text}</span>
+              <Button variant="primary">{tr.automation.accept}</Button>
+              <Button>{tr.automation.dismiss}</Button>
+            </div>
+          ))}
+          <p className="text-xs text-neutral-600">{tr.automation.modeHelp}</p>
+        </div>
       </div>
     </AppShell>
   );

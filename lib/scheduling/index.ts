@@ -152,8 +152,12 @@ export function suggestShootSlots(input: SlotInput): SlotSuggestion[] {
             .filter((b) => overlaps(b, slot) && b.vehicleId)
             .map((b) => b.vehicleId as string),
         );
+        // vehicle must be free AND fit the whole crew (capacity check —
+        // caught by the ai-workforce review roundtable)
         const vehicle =
-          input.vehicles.find((v) => !busyVehicles.has(v.id)) ?? null;
+          input.vehicles.find(
+            (v) => !busyVehicles.has(v.id) && v.capacity >= crewSize,
+          ) ?? null;
         if (input.vehicles.length > 0 && !vehicle) continue;
 
         const hoursFromNow =

@@ -19,6 +19,7 @@ import { SocialAccountsEditor } from '../_components/social-accounts-editor';
 import { MetricsEditor } from '../_components/metrics-editor';
 import { ClientSettingsEditor } from '../_components/client-settings-editor';
 import { DeleteClientButton } from '../_components/delete-client-button';
+import { PortalPanel } from './_components/portal-panel';
 
 export default async function ClientDetailPage({
   params,
@@ -102,6 +103,8 @@ export default async function ClientDetailPage({
           reports={reports}
           canManage={canManage}
         />
+
+        <PortalPanel clientId={client.id} canManage={canManage} />
       </div>
 
       {isAdmin && (

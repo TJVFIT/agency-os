@@ -1,13 +1,16 @@
 import { redirect } from 'next/navigation';
 
 import { PageHeader, Panel } from '@/components/ui';
+import { PushSubscribe } from '@/components/push-subscribe';
 import { getSessionProfile } from '@/lib/auth';
 import { listProfiles } from '@/lib/db/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { fmtIstanbul } from '@/lib/dates';
 import type { Enums } from '@/lib/db/types';
+import type { AutomationMode } from '@/lib/automation';
 import { tr } from '@/lib/i18n/tr';
 
+import { AutomationSettings } from './_components/automation-settings';
 import { ProfileForm } from './_components/profile-form';
 import { TelegramLink } from './_components/telegram-link';
 import { UsersAdmin } from './_components/users-admin';
@@ -29,29 +32,35 @@ export default async function SettingsPage() {
   const supabase = await createSupabaseServer();
 
   // Admin-only data loaded in parallel.
-  const [profiles, accountsRes, lastDoneRes, ...counts] = await Promise.all([
-    isAdmin ? listProfiles() : Promise.resolve([]),
-    isAdmin
-      ? supabase
-          .from('client_social_accounts')
-          .select('id, platform, handle, postiz_integration_id, clients(name)')
-          .order('platform')
-      : Promise.resolve({ data: null }),
-    // Recent successes carry the winning provider in result._meta.provider
-    // (worker/src/handlers/ai.ts) — group to show last success PER provider.
-    supabase
-      .from('ai_jobs')
-      .select('updated_at, result')
-      .eq('status', 'done')
-      .order('updated_at', { ascending: false })
-      .limit(50),
-    ...JOB_STATUSES.map((status) =>
+  const [profiles, accountsRes, automationRes, lastDoneRes, ...counts] =
+    await Promise.all([
+      isAdmin ? listProfiles() : Promise.resolve([]),
+      isAdmin
+        ? supabase
+            .from('client_social_accounts')
+            .select(
+              'id, platform, handle, postiz_integration_id, clients(name)',
+            )
+            .order('platform')
+        : Promise.resolve({ data: null }),
+      isAdmin
+        ? supabase.from('automation_settings').select('key, mode')
+        : Promise.resolve({ data: null }),
+      // Recent successes carry the winning provider in result._meta.provider
+      // (worker/src/handlers/ai.ts) — group to show last success PER provider.
       supabase
         .from('ai_jobs')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', status),
-    ),
-  ]);
+        .select('updated_at, result')
+        .eq('status', 'done')
+        .order('updated_at', { ascending: false })
+        .limit(50),
+      ...JOB_STATUSES.map((status) =>
+        supabase
+          .from('ai_jobs')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', status),
+      ),
+    ]);
 
   // Last success per AI provider (SPEC §12). Rows are already newest-first,
   // so the first sighting of each provider is its latest success.
@@ -98,6 +107,8 @@ export default async function SettingsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title={tr.settings.profile}>
           <ProfileForm fullName={session.profile.full_name ?? ''} />
+          {/* Renders nothing when NEXT_PUBLIC_VAPID_PUBLIC_KEY is unset. */}
+          <PushSubscribe className="mt-5" />
         </Panel>
 
         <Panel title={tr.settings.telegram}>
@@ -163,6 +174,19 @@ export default async function SettingsPage() {
         {isAdmin && (
           <Panel title={tr.settings.users} className="lg:col-span-2">
             <UsersAdmin profiles={profiles} currentUserId={session.userId} />
+          </Panel>
+        )}
+
+        {isAdmin && (
+          <Panel title={tr.automation.title} className="lg:col-span-2">
+            <AutomationSettings
+              initial={
+                (automationRes.data ?? []) as {
+                  key: string;
+                  mode: AutomationMode;
+                }[]
+              }
+            />
           </Panel>
         )}
 

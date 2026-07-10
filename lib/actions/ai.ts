@@ -30,10 +30,33 @@ const replyPayload = z.object({
   context: z.string().max(2000).default(''),
 });
 
+// v2 creative kinds (UPGRADE_SPEC §4) — handled in worker/src/handlers/creative.ts.
+const ideaRefinePayload = z.object({
+  idea_id: z.uuid(),
+});
+
+const scenarioPayload = z.object({
+  card_id: z.uuid(),
+  brief: z.string().max(2000).default(''),
+});
+
+const posterPayload = z.object({
+  card_id: z.uuid(),
+  brief: z.string().max(2000).default(''),
+});
+
+const compliancePayload = z.object({
+  card_id: z.uuid(),
+});
+
 const KIND_SCHEMAS = {
   caption: captionPayload,
   translate: translatePayload,
   reply: replyPayload,
+  idea_refine: ideaRefinePayload,
+  scenario: scenarioPayload,
+  poster: posterPayload,
+  compliance: compliancePayload,
 } as const;
 
 export type EnqueueableKind = keyof typeof KIND_SCHEMAS;

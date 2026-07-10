@@ -22,7 +22,8 @@ Reference for standing the stack up. Human prerequisites are in SETUP.md
 1. **Database**: `supabase link` then `supabase db push` (review the diff).
    Migrations apply in order: `0001` schema, `0002` fail-closed status guard,
    `0003` queue claim fn + activity triggers, `0004` telegram link codes,
-   `0005` assignment log.
+   `0005` assignment log, `0006` v2 agency-ops (portal, shoots, finance,
+   automation modes, push — see UPGRADE_SPEC.md).
 2. **Seed admin**: `pnpm seed:admin -- --email … --password … --name …`.
 3. **Coolify → web app**: point at the repo, Dockerfile = `./Dockerfile`,
    port 3000, set env. Health check: `GET /api/health`.
@@ -34,6 +35,12 @@ Reference for standing the stack up. Human prerequisites are in SETUP.md
 6. **Backups**: schedule `tsx scripts/backup.ts` nightly (needs
    `SUPABASE_DB_URL` + R2). Configure an R2 lifecycle rule to prune
    `backups/` older than 14 days and raw reel inputs under `private/`.
+
+7. **Web push (v2)**: `npx web-push generate-vapid-keys` once; set
+   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` on web AND worker, `VAPID_PRIVATE_KEY` +
+   `VAPID_SUBJECT` on the worker only. Without them the push UI hides itself
+   and the worker sends Telegram only. `HIGGSFIELD_API_KEY/SECRET` are
+   optional (second poster provider; Gemini image is the free default).
 
 ## Free-tier guards (CLAUDE.md budget = $0)
 

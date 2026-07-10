@@ -3,8 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * Session refresh + route guard (Next 16 proxy, formerly middleware).
- * Public: /login, /approve/[token] (magic links, §10), /api/* (webhooks and
- * upload routes do their own auth).
+ * Public: /login, /approve/[token] (magic links, §10), /portal/[token]
+ * (client portal, UPGRADE_SPEC §2), /api/* (webhooks and upload routes do
+ * their own auth).
  */
 export async function proxy(request: NextRequest) {
   // /preview is a credential-free UI demo route — skip the auth round-trip
@@ -44,7 +45,14 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isPublic =
-    path === '/login' || path.startsWith('/approve') || path.startsWith('/api');
+    path === '/login' ||
+    path.startsWith('/approve') ||
+    path.startsWith('/portal') ||
+    path.startsWith('/api') ||
+    // PWA assets (UPGRADE_SPEC §8): the browser fetches the manifest without
+    // credentials and the SW file must never redirect to /login.
+    path === '/manifest.webmanifest' ||
+    path === '/sw.js';
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

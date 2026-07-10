@@ -65,11 +65,43 @@ Open http://localhost:3000 → redirected to /login → sign in.
 14. **Planner**: run the Monday cron (or invoke handler) → 5 `idea` cards
     appear for a seeded client, tagged `ai-planned`.
 
+## v2 — client-requirements upgrade (UPGRADE_SPEC.md)
+
+15. **Portal**: /clients/[id] → "Portal bağlantısı oluştur" → open
+    /portal/{token} on a phone → three tabs work: approve a pending card;
+    send an idea (appears in the client's Fikir kutusu, AI refines it within
+    ~30s); submit a müsaitlik window. Revoke the link → page shows "bağlantı
+    artık aktif değil".
+16. **Idea → card**: in Fikir kutusu accept a refined idea → a card is
+    created, a `scenario` job runs and posts the senaryo as a comment; if
+    `needs_shoot`, a suggestion appears on the dashboard.
+17. **Production**: /production → "Zaman öner" fills a 3.5h block honoring
+    the müsaitlik you submitted; create + confirm the shoot (crew gets
+    Telegram/push brief); mark done → kurgu/metin/kontrol cards open (or a
+    suggestion appears when automation is in Öneri mode).
+18. **Finance**: /finance → create a package with quotas; publish counts fill
+    the usage bars; add a payment due yesterday → detector flags it
+    "Gecikmiş"; create an ad task and move it planned→active→done with
+    results.
+19. **Compliance gate**: put a banned word in a scheduled card's caption →
+    dispatcher blocks it ("publish.blocked" in the feed, suggestion created);
+    fix the caption → publishes on the next tick.
+20. **Automation modes**: /settings → Otomasyon → set master to "Öneri" →
+    nothing auto-executes; planner/dispatcher write suggestions instead;
+    "Uygula" on a suggestion executes it. Set back to "Yarı otomatik".
+21. **PWA + push**: install the app (mobile: Ana Ekrana Ekle) →
+    /settings → "Bildirimleri aç" → grant permission → trigger any
+    notification (assign a card) → a push notification arrives even with the
+    tab closed. Requires VAPID keys in env.
+22. **Daily plan**: run the 08:00 cron → every staff member with due work
+    gets a Telegram/push digest; dashboard "Bugünün planı" matches it.
+
 ## Automated checks
 
 ```bash
 pnpm typecheck   # app + worker
 pnpm lint
-pnpm test        # status machine, AI router/bucket/prompts, ASS generator
+pnpm test        # status machine, AI router/bucket/prompts, ASS generator,
+                 # scheduling engine, compliance gate, automation modes
 pnpm build
 ```

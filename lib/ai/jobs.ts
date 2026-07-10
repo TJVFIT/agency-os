@@ -7,17 +7,22 @@
 
 import {
   CAPTION_SYSTEM,
+  IDEA_REFINE_SYSTEM,
   PLANNER_SYSTEM,
+  POSTER_PROMPT,
   REPLY_SYSTEM,
   REPORT_SYSTEM,
+  SCENARIO_SYSTEM,
   TRANSLATE_SYSTEM,
   renderPrompt,
 } from './prompts';
 import {
   captionResultSchema,
+  ideaRefineResultSchema,
   plannerResultSchema,
   replyResultSchema,
   reportResultSchema,
+  scenarioResultSchema,
   translateResultSchema,
 } from './schemas';
 import type { DraftingKind } from './providers';
@@ -124,6 +129,51 @@ export function buildReportPrompt(metricsJson: string) {
     schema: reportResultSchema,
     chainKind: 'report' as const,
   };
+}
+
+export function buildIdeaRefinePrompt(
+  brandProfileJson: string,
+  opts: { title: string; body: string },
+) {
+  return {
+    system: renderPrompt(IDEA_REFINE_SYSTEM, {
+      brand_profile_json: brandProfileJson,
+      idea_title: opts.title,
+      idea_body: opts.body,
+    }),
+    user: USER_NUDGE,
+    schema: ideaRefineResultSchema,
+    // Drafting-family chain (KEY_A) — 'plan' picks the same providers.
+    chainKind: 'plan' as const,
+  };
+}
+
+export function buildScenarioPrompt(
+  brandProfileJson: string,
+  opts: { brief: string; type: string },
+) {
+  return {
+    system: renderPrompt(SCENARIO_SYSTEM, {
+      brand_profile_json: brandProfileJson,
+      type: opts.type,
+      brief: opts.brief,
+    }),
+    user: USER_NUDGE,
+    schema: scenarioResultSchema,
+    chainKind: 'plan' as const,
+  };
+}
+
+/** Rendered plain-text prompt for the poster image providers (UPGRADE_SPEC
+ * §4). Image generation has no JSON contract, so no schema/chainKind here. */
+export function buildPosterImagePrompt(
+  brandProfileJson: string,
+  brief: string,
+): string {
+  return renderPrompt(POSTER_PROMPT, {
+    brand_profile_json: brandProfileJson,
+    brief,
+  });
 }
 
 /** Platform caption length caps (SPEC §6.3 max_chars). */

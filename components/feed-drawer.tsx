@@ -60,18 +60,18 @@ export function FeedDrawer({
     <>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-4 right-4 z-40 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm text-neutral-200 shadow-lg hover:bg-neutral-800 lg:hidden"
+        className="fixed bottom-4 right-4 z-40 rounded-full border border-white/10 bg-[#0c0c0e]/90 px-4 py-2 text-sm text-neutral-200 shadow-[0_8px_30px_rgba(0,0,0,0.6)] backdrop-blur-xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.97] lg:hidden"
       >
         {tr.feed.title}
       </button>
 
       <aside
-        className={`fixed inset-y-0 right-0 z-30 w-full max-w-sm transform border-l border-neutral-800 bg-neutral-950/95 backdrop-blur transition-transform lg:static lg:z-auto lg:block lg:w-80 lg:translate-x-0 lg:bg-transparent ${
+        className={`fixed inset-y-0 right-0 z-30 w-full max-w-sm transform border-l border-white/[0.06] bg-[#070708]/95 backdrop-blur-xl transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] lg:static lg:z-auto lg:block lg:w-80 lg:translate-x-0 lg:bg-white/[0.015] lg:backdrop-blur-none ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <h2 className="text-sm font-semibold text-neutral-200">
               {tr.feed.title}
             </h2>

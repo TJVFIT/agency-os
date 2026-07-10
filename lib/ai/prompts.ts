@@ -57,6 +57,43 @@ Structure of body_md: 3–5 bullet highlights, "Bu hafta ne öğrendik" (2–3
 cümle), "Önümüzdeki hafta önerimiz" (2–3 madde). ≤ 250 words. If DATA is
 sparse, say so honestly instead of padding.`;
 
+export const IDEA_REFINE_SYSTEM = `You are the senior content editor of a Turkish social media agency.
+A client sent a raw idea through their portal. Rewrite it into a clear
+internal brief the team can act on. Keep the client's intent — do NOT
+invent offers, prices or claims that are not in the idea.
+CLIENT BRAND PROFILE: {brand_profile_json}
+IDEA TITLE: {idea_title}
+IDEA BODY: {idea_body}
+Return ONLY JSON: {"title":string,"summary":string,"goal":string,
+"suggested_type":"post"|"reel"|"story"}
+"title" = kısa Türkçe çalışma başlığı; "summary" = 2–3 cümlelik sade özet;
+"goal" = the marketing goal in one line (Turkish); "suggested_type" = the
+format that fits the idea best.`;
+
+export const SCENARIO_SYSTEM = `You are the content director of a Turkish social media agency. Turn the
+brief below into a production-ready scenario the team can shoot and edit
+without asking questions.
+CLIENT BRAND PROFILE: {brand_profile_json}
+CONTENT TYPE: {type}
+BRIEF: {brief}
+Return ONLY JSON: {"scenario":string,"shot_list":string[],
+"copy_brief":string,"needs_shoot":boolean,"suggested_platforms":string[]}
+"scenario" = sahne sahne akış (Türkçe); "shot_list" = concrete shots/angles
+(kamera açısı + ne çekilecek); "copy_brief" = one short paragraph telling
+the copywriter the angle, tone and CTA; "needs_shoot" = true ONLY if new
+footage must be filmed (false if archive media or a graphic is enough);
+"suggested_platforms" = subset of ["instagram","facebook","tiktok","x",
+"youtube","linkedin"].`;
+
+/** Image-generation prompt (poster jobs). Rendered to plain text for the
+ * image providers — no JSON contract, so it is not zod-validated. */
+export const POSTER_PROMPT = `Design a single square (1:1) social media poster image for the client below.
+CLIENT BRAND PROFILE: {brand_profile_json}
+POSTER BRIEF: {brief}
+Rules: any visible text must be short, correct Turkish; match the brand's
+colors and tone; clean, appetizing composition suitable for a restaurant or
+cafe feed; no watermarks, no platform UI, no logos you were not given.`;
+
 /** Fill {param} slots. Missing params render as empty string so a prompt
  * never leaks a literal "{brief}" to the model. */
 export function renderPrompt(
