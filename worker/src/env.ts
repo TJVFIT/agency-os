@@ -47,6 +47,13 @@ const workerSchema = z.object({
   POSTIZ_API_KEY: z.string().optional(),
   WHISPER_MODEL: z.enum(['small', 'base']).default('small'),
   TZ: z.string().default('Europe/Istanbul'),
+
+  // v2 (UPGRADE_SPEC §8, §4) — web push + optional poster provider
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default('mailto:ops@agency.local'),
+  HIGGSFIELD_API_KEY: z.string().optional(),
+  HIGGSFIELD_API_SECRET: z.string().optional(),
 });
 
 export type WorkerEnv = z.infer<typeof workerSchema>;

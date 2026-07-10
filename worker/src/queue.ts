@@ -26,6 +26,14 @@ const MAX_ATTEMPTS = 5;
 
 type Handler = (job: AiJob) => Promise<unknown>;
 
+// v2 creative kinds (UPGRADE_SPEC §4) — real handlers land in
+// handlers/creative.ts; until then fail fast so backoff/alerting applies.
+const notImplemented =
+  (kind: string): Handler =>
+  async () => {
+    throw new Error(`handler for ${kind} not implemented yet`);
+  };
+
 const HANDLERS: Record<Enums<'job_kind'>, Handler> = {
   caption: handleCaption,
   translate: handleTranslate,
@@ -36,6 +44,10 @@ const HANDLERS: Record<Enums<'job_kind'>, Handler> = {
   bg_remove: handleBgRemove,
   render_reel: handleRenderReel,
   publish: handlePublish,
+  idea_refine: notImplemented('idea_refine'),
+  scenario: notImplemented('scenario'),
+  poster: notImplemented('poster'),
+  compliance: notImplemented('compliance'),
 };
 
 async function claimBatch(batch: number): Promise<AiJob[]> {

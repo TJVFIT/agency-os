@@ -7,6 +7,12 @@ import { NextResponse, type NextRequest } from 'next/server';
  * upload routes do their own auth).
  */
 export async function proxy(request: NextRequest) {
+  // /preview is a credential-free UI demo route — skip the auth round-trip
+  // entirely so it renders instantly even without a real Supabase backend.
+  if (request.nextUrl.pathname.startsWith('/preview')) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

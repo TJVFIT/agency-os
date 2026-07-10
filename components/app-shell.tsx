@@ -11,6 +11,8 @@ const NAV_ITEMS: Array<{ href: string; label: string }> = [
   { href: '/board', label: tr.nav.board },
   { href: '/calendar', label: tr.nav.calendar },
   { href: '/clients', label: tr.nav.clients },
+  { href: '/production', label: tr.nav.production },
+  { href: '/finance', label: tr.nav.finance },
   { href: '/assets', label: tr.nav.assets },
   { href: '/reports', label: tr.nav.reports },
   { href: '/settings', label: tr.nav.settings },
