@@ -1,10 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
 import { Button, Input, Panel, Textarea } from '@/components/ui';
 import { useRealtimeEvent } from '@/components/realtime-provider';
+import { createSupabaseBrowser } from '@/lib/supabase/client';
 import { enqueueAiJob } from '@/lib/actions/ai';
 import { upsertCardContent } from '@/lib/actions/contents';
 import { tr } from '@/lib/i18n/tr';
@@ -16,6 +17,10 @@ import type {
 } from '@/lib/ai/schemas';
 
 type Kind = 'caption' | 'translate' | 'reply';
+
+// Safety net for a pending AI slot: if no terminal ai_jobs event resolves it
+// within this window, reconcile once more and then fail loud.
+const PENDING_TIMEOUT_MS = 90_000;
 
 interface CaptionState {
   status: 'pending' | 'done' | 'error';
@@ -37,16 +42,25 @@ export function AiActions({
   cardId,
   langs,
   userId,
+  platforms,
 }: {
   cardId: string;
   langs: string[];
   userId: string | null;
+  platforms?: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
+  // The platform a generated caption must fit (length rules differ per
+  // network). Use the card's first target platform; fall back to instagram.
+  const captionPlatform = platforms?.find((p) => p) ?? 'instagram';
+
   // jobId → which action produced it (only jobs enqueued here).
   const jobKinds = useRef<Map<string, Kind>>(new Map());
+  // Safety-net timers so a pending state can never hang forever if the
+  // ai_jobs realtime UPDATE is missed or races job registration.
+  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   const [brief, setBrief] = useState('');
   const [incoming, setIncoming] = useState('');
@@ -59,20 +73,22 @@ export function AiActions({
 
   const hasEn = langs.includes('en');
 
-  const onJobUpdate = useCallback((job: AiJob) => {
-    const kind = jobKinds.current.get(job.id);
-    if (!kind) return; // not one of ours
-    if (job.status !== 'done' && job.status !== 'error') return;
+  const setError = useCallback((kind: Kind) => {
+    if (kind === 'caption') setCaption({ status: 'error' });
+    else if (kind === 'translate') setTranslate({ status: 'error' });
+    else if (kind === 'reply') setReply({ status: 'error' });
+  }, []);
 
+  // Apply a terminal ai_job to its slot. Returns true if the job was terminal
+  // (done/error) and resolved; false if still queued/running (leave pending).
+  const applyResult = useCallback((kind: Kind, job: AiJob): boolean => {
+    if (job.status !== 'done' && job.status !== 'error') return false;
     const failed = job.status === 'error' || !job.result;
     if (kind === 'caption') {
       setCaption(
         failed
           ? { status: 'error' }
-          : {
-              status: 'done',
-              result: job.result as unknown as CaptionResult,
-            },
+          : { status: 'done', result: job.result as unknown as CaptionResult },
       );
     } else if (kind === 'translate') {
       setTranslate(
@@ -90,29 +106,80 @@ export function AiActions({
           : { status: 'done', result: job.result as unknown as ReplyResult },
       );
     }
-    jobKinds.current.delete(job.id);
+    return true;
   }, []);
 
+  const onJobUpdate = useCallback(
+    (job: AiJob) => {
+      const kind = jobKinds.current.get(job.id);
+      if (!kind) return; // not one of ours
+      if (applyResult(kind, job)) jobKinds.current.delete(job.id);
+    },
+    [applyResult],
+  );
+
   useRealtimeEvent('ai_jobs.update', onJobUpdate);
+
+  // Fetch a job directly and resolve it if terminal. Covers the race where the
+  // realtime UPDATE fires before we register the jobId, and dropped events.
+  const reconcile = useCallback(
+    async (jobId: string, kind: Kind): Promise<boolean> => {
+      if (!jobKinds.current.has(jobId)) return true; // already resolved
+      const supabase = createSupabaseBrowser();
+      const { data } = await supabase
+        .from('ai_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .maybeSingle();
+      if (data && applyResult(kind, data as AiJob)) {
+        jobKinds.current.delete(jobId);
+        return true;
+      }
+      return false;
+    },
+    [applyResult],
+  );
+
+  // Clear outstanding timers on unmount.
+  useEffect(() => {
+    const set = timers.current;
+    return () => {
+      for (const t of set) clearTimeout(t);
+      set.clear();
+    };
+  }, []);
 
   function enqueue(kind: Kind, payload: unknown, reset: () => void) {
     reset();
     startTransition(async () => {
       const res = await enqueueAiJob(kind, payload);
-      if (res.ok && res.data) {
-        jobKinds.current.set(res.data.jobId, kind);
-      } else {
+      if (!res.ok || !res.data) {
         // reflect immediate failure in the relevant slot
-        if (kind === 'caption') setCaption({ status: 'error' });
-        if (kind === 'translate') setTranslate({ status: 'error' });
-        if (kind === 'reply') setReply({ status: 'error' });
+        setError(kind);
+        return;
       }
+      const { jobId } = res.data;
+      jobKinds.current.set(jobId, kind);
+      // The worker may have already finished (and emitted the UPDATE) before we
+      // registered the id above — reconcile immediately so we don't hang.
+      void reconcile(jobId, kind);
+      // Last resort: if still pending later, re-check; unstick to error so the
+      // button can't stay disabled forever on a missed event / dead worker.
+      const timer = setTimeout(() => {
+        timers.current.delete(timer);
+        void reconcile(jobId, kind).then((resolved) => {
+          if (!resolved && jobKinds.current.delete(jobId)) setError(kind);
+        });
+      }, PENDING_TIMEOUT_MS);
+      timers.current.add(timer);
     });
   }
 
   function runCaption() {
-    enqueue('caption', { card_id: cardId, brief, platform: 'instagram' }, () =>
-      setCaption({ status: 'pending' }),
+    enqueue(
+      'caption',
+      { card_id: cardId, brief, platform: captionPlatform },
+      () => setCaption({ status: 'pending' }),
     );
   }
 

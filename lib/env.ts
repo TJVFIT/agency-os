@@ -21,6 +21,8 @@ const clientSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   /** Web push (UPGRADE_SPEC §8) — absent = push UI hides itself. */
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
+  /** Public R2 base for browser-rendered media URLs (lib/r2-url.ts). */
+  NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.url().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

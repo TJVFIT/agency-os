@@ -173,7 +173,10 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
-enable_signup = true
+# SPEC §4: the workspace is invite-only — admins invite teammates via the
+# service role, so public signup stays off. (config.toml only binds on a
+# `supabase config push`; disable signups in the hosted dashboard too.)
+enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
@@ -218,7 +221,9 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
-enable_signup = true
+# SPEC §4: invite-only — admins invite via the service role. Also disable in
+# the hosted dashboard (config.toml only binds on `supabase config push`).
+enable_signup = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true

@@ -3,6 +3,7 @@ import 'server-only';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { parseAssetVariants } from '@/lib/db/domain';
 import { publicAssetUrl } from '@/lib/r2-url';
+import { istanbulToUtc } from '@/lib/dates';
 import type { CardContent } from '@/lib/db/types';
 
 /**
@@ -35,6 +36,28 @@ function awaitingApproval(status: string, langs: string[]): boolean {
   return (
     status === 'translated' || (status === 'visual_ready' && langs.length === 1)
   );
+}
+
+/**
+ * A weekly approval link only governs the cards belonging to its own week
+ * (SPEC §10 — a week link is not a client-wide approval channel). A card counts
+ * as "this week's" when its scheduled_at (else due_at) falls in
+ * [weekStart, weekStart+7d); with neither date set we fall back to created_at.
+ * The durable portal link (lib/portal/service.ts) deliberately covers all weeks.
+ */
+function inWeek(
+  card: {
+    scheduled_at: string | null;
+    due_at: string | null;
+    created_at: string;
+  },
+  weekStartMs: number,
+  weekEndMs: number,
+): boolean {
+  const ref = card.scheduled_at ?? card.due_at ?? card.created_at;
+  if (!ref) return false;
+  const t = new Date(ref).getTime();
+  return t >= weekStartMs && t < weekEndMs;
 }
 
 export async function loadApprovalView(
@@ -71,12 +94,21 @@ export async function loadApprovalView(
 
   const { data: cards } = await admin
     .from('cards')
-    .select('id, title, type, status, card_contents(*)')
+    .select(
+      'id, title, type, status, scheduled_at, due_at, created_at, card_contents(*)',
+    )
     .eq('client_id', link.client_id)
     .order('created_at');
 
-  const pending = (cards ?? []).filter((c) =>
-    awaitingApproval(c.status, client.langs),
+  // Scope to the link's week. Turkey is UTC+3 year-round (no DST), so a plain
+  // 7×24h window off the Istanbul-midnight week start is exact.
+  const weekStartMs = istanbulToUtc(`${link.week_start}T00:00:00`).getTime();
+  const weekEndMs = weekStartMs + 7 * 24 * 60 * 60 * 1000;
+
+  const pending = (cards ?? []).filter(
+    (c) =>
+      awaitingApproval(c.status, client.langs) &&
+      inWeek(c, weekStartMs, weekEndMs),
   );
 
   const approvalCards: ApprovalCard[] = await Promise.all(

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
 import { Button, Panel, Textarea } from '@/components/ui';
 import { upsertCardContent } from '@/lib/actions/contents';
@@ -68,8 +68,47 @@ export function ContentTabs({
   });
   const [savedLang, setSavedLang] = useState<Lang | null>(null);
 
+  // Which fields carry unsaved local edits, per lang — never clobbered by a
+  // re-sync. Fields left clean track the server value.
+  const dirty = useRef<
+    Record<Lang, Partial<Record<keyof DraftState, boolean>>>
+  >({ tr: {}, en: {} });
+  // Last server version (card_contents.updated_at) we synced from, per lang.
+  const syncedAt = useRef<Record<Lang, string | null>>({ tr: null, en: null });
+
+  // Re-sync when the underlying card_content changes (AI variant applied,
+  // teammate save, router.refresh). Only fields the user hasn't touched are
+  // overwritten, so a stale draft can never clobber fresher server text.
+  useEffect(() => {
+    setDrafts((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const lang of ['tr', 'en'] as Lang[]) {
+        const c = byLang.get(lang);
+        const ver = c?.updated_at ?? null;
+        if (ver === syncedAt.current[lang]) continue;
+        const server = toDraft(c);
+        const cur = prev[lang];
+        const d = dirty.current[lang];
+        next[lang] = {
+          caption: d.caption ? cur.caption : server.caption,
+          hashtags: d.hashtags ? cur.hashtags : server.hashtags,
+          mediaAssetIds: d.mediaAssetIds
+            ? cur.mediaAssetIds
+            : server.mediaAssetIds,
+        };
+        syncedAt.current[lang] = ver;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [byLang]);
+
   function patch(lang: Lang, next: Partial<DraftState>) {
     setDrafts((prev) => ({ ...prev, [lang]: { ...prev[lang], ...next } }));
+    for (const k of Object.keys(next) as (keyof DraftState)[]) {
+      dirty.current[lang][k] = true;
+    }
     setSavedLang(null);
   }
 
@@ -84,6 +123,10 @@ export function ContentTabs({
         mediaAssetIds: d.mediaAssetIds,
       });
       if (res.ok) {
+        // Our local draft is now the server truth — drop dirty flags so the
+        // refreshed content (new updated_at) re-syncs cleanly instead of being
+        // treated as an external change to preserve.
+        dirty.current[lang] = {};
         setSavedLang(lang);
         router.refresh();
       }

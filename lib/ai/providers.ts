@@ -28,10 +28,28 @@ const BUCKET_REFILL_MS = 5000;
 
 const RETRIABLE_STATUS = (s: number) => s === 429 || s >= 500;
 
+/**
+ * Token buckets are hoisted to module scope so SPEC §6.2's per-provider-key
+ * limit (1 req/5 s, burst 3) actually accumulates: buildChain runs once per
+ * job, so a fresh bucket per call would reset the budget on every request and
+ * never throttle. Keyed by provider id + API key, the state persists for the
+ * lifetime of the worker process.
+ */
+const buckets = new Map<string, TokenBucket>();
+
+function bucketFor(providerKey: string): TokenBucket {
+  let bucket = buckets.get(providerKey);
+  if (!bucket) {
+    bucket = new TokenBucket(BUCKET_CAPACITY, BUCKET_REFILL_MS);
+    buckets.set(providerKey, bucket);
+  }
+  return bucket;
+}
+
 function geminiProvider(id: string, apiKey: string, model: string): Provider {
   return {
     id,
-    bucket: new TokenBucket(BUCKET_CAPACITY, BUCKET_REFILL_MS),
+    bucket: bucketFor(`${id}:${apiKey}`),
     async generate(system, user, signal) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       let res: Response;
@@ -76,7 +94,7 @@ function openAiCompatibleProvider(
 ): Provider {
   return {
     id,
-    bucket: new TokenBucket(BUCKET_CAPACITY, BUCKET_REFILL_MS),
+    bucket: bucketFor(`${id}:${apiKey}`),
     async generate(system, user, signal) {
       let res: Response;
       try {

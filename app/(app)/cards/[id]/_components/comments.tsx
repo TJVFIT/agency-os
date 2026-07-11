@@ -22,6 +22,7 @@ export function Comments({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [body, setBody] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   function authorName(c: CardDetail['comments'][number]): string {
     if (c.profiles?.full_name) return c.profiles.full_name;
@@ -32,11 +33,14 @@ export function Comments({
   function submit() {
     const text = body.trim();
     if (!text) return;
+    setError(null);
     startTransition(async () => {
       const res = await addComment({ cardId, body: text });
       if (res.ok) {
         setBody('');
         router.refresh();
+      } else {
+        setError(tr.errors.generic);
       }
     });
   }
@@ -72,6 +76,7 @@ export function Comments({
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
           }}
         />
+        {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex justify-end">
           <Button
             type="button"

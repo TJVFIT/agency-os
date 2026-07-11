@@ -29,6 +29,12 @@ import { handlePublish } from './handlers/publish';
 
 const POLL_MS = 2000;
 const MAX_ATTEMPTS = 5;
+// A 'running' job whose updated_at is older than this is considered orphaned by
+// a worker crash (claim_ai_jobs stamps updated_at at claim time and only ever
+// picks 'queued'). Concurrency is 1, so no legitimate job runs this long.
+const STALE_RUNNING_MS = 10 * 60_000;
+// How often to sweep for orphaned 'running' jobs (also runs once at startup).
+const RECLAIM_MS = 2 * 60_000;
 
 type Handler = (job: AiJob) => Promise<unknown>;
 
@@ -111,6 +117,31 @@ async function failJob(job: AiJob, message: string): Promise<void> {
   );
 }
 
+/**
+ * Requeue orphaned 'running' jobs (worker crash recovery). claim_ai_jobs only
+ * ever picks 'queued', so a job left 'running' by a crash would never retry —
+ * and for publish the dispatcher dedupe (queued/running/error) would block the
+ * card forever. Treat a stale run as a failed attempt via failJob so it honors
+ * MAX_ATTEMPTS (→ error + alert) and exponential backoff instead of hot-looping.
+ */
+async function reclaimStale(): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_RUNNING_MS).toISOString();
+  const { data: stale, error } = await db()
+    .from('ai_jobs')
+    .select('*')
+    .eq('status', 'running')
+    .lt('updated_at', cutoff);
+  if (error) {
+    log.error({ err: error.message }, 'reclaimStale query failed');
+    return;
+  }
+  if (!stale?.length) return;
+  log.warn({ count: stale.length }, 'reclaiming orphaned running jobs');
+  for (const job of stale as AiJob[]) {
+    await failJob(job, 'reclaimed: stale running job (worker crash)');
+  }
+}
+
 let running = false;
 let stopped = false;
 
@@ -132,9 +163,19 @@ async function tick(): Promise<void> {
 
 export function startQueueLoop(): () => void {
   log.info('ai_jobs poll loop started');
+  // Startup crash-recovery, then periodic sweeps for jobs orphaned mid-run.
+  reclaimStale().catch((e) =>
+    log.error({ err: String(e) }, 'reclaimStale (startup) error'),
+  );
   const timer = setInterval(tick, POLL_MS);
+  const reclaimTimer = setInterval(() => {
+    reclaimStale().catch((e) =>
+      log.error({ err: String(e) }, 'reclaimStale error'),
+    );
+  }, RECLAIM_MS);
   return () => {
     stopped = true;
     clearInterval(timer);
+    clearInterval(reclaimTimer);
   };
 }

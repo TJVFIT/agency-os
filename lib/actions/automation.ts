@@ -157,6 +157,28 @@ export async function resolveSuggestion(
   const body = bodySchema.safeParse(suggestion.body);
   if (!body.success) return { ok: false, error: 'validation' };
 
+  // A 'publish' suggestion can go stale between when the dispatcher wrote it
+  // (card due: scheduled + scheduled_at ≤ now) and when a manager accepts it:
+  // the card may have been published, moved off 'scheduled', deleted, or
+  // rescheduled to the future. Enqueuing publish then would publish the wrong
+  // thing immediately (hard rule 1). Re-verify here; if stale, dismiss the
+  // suggestion (a fresh one is re-created once the card is due again).
+  if (body.data.kind === 'enqueue_job' && body.data.job.kind === 'publish') {
+    if (await isPublishSuggestionStale(supabase, body.data.job.payload)) {
+      await supabase
+        .from('suggestions')
+        .update({
+          status: 'dismissed',
+          resolved_by: session.userId,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('status', 'pending');
+      revalidatePath('/dashboard');
+      return { ok: false, error: 'stale' };
+    }
+  }
+
   // Claim first (pending → accepted) so concurrent accepts can't execute the
   // body twice. On execution failure we revert to pending so a retry works.
   const { data: claimed, error: claimErr } = await supabase
@@ -184,6 +206,30 @@ export async function resolveSuggestion(
   revalidatePath('/dashboard');
   revalidatePath('/board');
   return { ok: true };
+}
+
+/**
+ * A publish suggestion is stale unless its card still exists, is still in
+ * 'scheduled', and is still due (scheduled_at set and not in the future). A
+ * card rescheduled to the future must not be published now, and one already
+ * off 'scheduled' has been handled elsewhere. Runs under the caller's RLS.
+ */
+async function isPublishSuggestionStale(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+  payload: Record<string, unknown>,
+): Promise<boolean> {
+  const cardId = typeof payload.card_id === 'string' ? payload.card_id : null;
+  if (!cardId) return true;
+
+  const { data: card } = await supabase
+    .from('cards')
+    .select('status, scheduled_at')
+    .eq('id', cardId)
+    .maybeSingle();
+  if (!card) return true;
+  if (card.status !== 'scheduled') return true;
+  if (!card.scheduled_at) return true;
+  return new Date(card.scheduled_at).getTime() > Date.now();
 }
 
 /** Execute an accepted suggestion body. Returns an error message or null. */

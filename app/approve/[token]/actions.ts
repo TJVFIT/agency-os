@@ -1,5 +1,6 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
@@ -7,13 +8,13 @@ import type { ActionResult } from '@/lib/actions/cards';
 
 /**
  * Public approval decisions (SPEC §10). No login — the token IS the auth.
- * Validated server-side with the service role; a simple per-token in-memory
+ * Validated server-side with the service role; a simple per-IP in-memory
  * rate limit blunts abuse (SPEC §14). Approve → status approved; reject →
  * copy_draft + a system comment carrying the reason.
  */
 
 const decisionSchema = z.object({
-  token: z.string().min(20),
+  token: z.string().min(20).max(200),
   decisions: z
     .array(
       z.object({
@@ -25,15 +26,34 @@ const decisionSchema = z.object({
     .min(1),
 });
 
-// Per-token sliding window: max 30 submissions / 10 min (module-scoped).
+// Per-IP sliding window: max 30 submissions / 10 min (module-scoped). Keyed on
+// the client IP (SPEC §14 — a caller-supplied token is not a throttle key), with
+// expired windows evicted every call and a hard key cap so a flood of distinct
+// IPs (or forged X-Forwarded-For values) can't exhaust process memory.
 const hits = new Map<string, number[]>();
-function rateLimited(token: string): boolean {
+const WINDOW_MS = 10 * 60_000;
+const MAX_HITS = 30;
+const MAX_KEYS = 10_000;
+
+async function clientIp(): Promise<string> {
+  const xff = (await headers()).get('x-forwarded-for');
+  return xff?.split(',')[0]?.trim() || 'unknown';
+}
+
+function rateLimited(ip: string): boolean {
   const now = Date.now();
-  const windowMs = 10 * 60_000;
-  const arr = (hits.get(token) ?? []).filter((t) => now - t < windowMs);
+  // Evict expired windows so the map stays bounded under normal traffic.
+  for (const [key, times] of hits) {
+    const kept = times.filter((t) => now - t < WINDOW_MS);
+    if (kept.length === 0) hits.delete(key);
+    else hits.set(key, kept);
+  }
+  // Hard cap: once saturated, shed previously-unseen IPs rather than grow.
+  if (!hits.has(ip) && hits.size >= MAX_KEYS) return true;
+  const arr = hits.get(ip) ?? [];
   arr.push(now);
-  hits.set(token, arr);
-  return arr.length > 30;
+  hits.set(ip, arr);
+  return arr.length > MAX_HITS;
 }
 
 export async function submitApprovalDecisions(
@@ -43,7 +63,8 @@ export async function submitApprovalDecisions(
   if (!parsed.success) return { ok: false, error: 'validation' };
   const { token, decisions } = parsed.data;
 
-  if (rateLimited(token)) return { ok: false, error: 'rate_limited' };
+  if (rateLimited(await clientIp()))
+    return { ok: false, error: 'rate_limited' };
 
   const admin = createSupabaseAdmin();
   const { data: link } = await admin
@@ -81,6 +102,19 @@ export async function submitApprovalDecisions(
     if (!card || card.client_id !== link.client_id) continue;
     if (!awaitingApproval(card.status)) continue;
 
+    // Transition under the optimistic lock FIRST and confirm it matched a row.
+    // If 0 rows changed (already decided / raced), skip the audit + activity
+    // writes entirely — otherwise we'd log a false 'approval.granted' and fire a
+    // false notification for a decision that never actually landed.
+    const nextStatus = d.decision === 'approved' ? 'approved' : 'copy_draft';
+    const { data: updated } = await admin
+      .from('cards')
+      .update({ status: nextStatus })
+      .eq('id', d.cardId)
+      .eq('status', card.status) // optimistic lock against concurrent change
+      .select('id');
+    if (!updated || updated.length === 0) continue;
+
     await admin.from('approval_actions').insert({
       approval_link_id: link.id,
       card_id: d.cardId,
@@ -89,11 +123,6 @@ export async function submitApprovalDecisions(
     });
 
     if (d.decision === 'approved') {
-      await admin
-        .from('cards')
-        .update({ status: 'approved' })
-        .eq('id', d.cardId)
-        .eq('status', card.status); // optimistic lock against concurrent change
       await admin.from('activity_log').insert({
         actor: null,
         client_id: link.client_id,
@@ -102,11 +131,6 @@ export async function submitApprovalDecisions(
         detail: { comment: d.comment },
       });
     } else {
-      await admin
-        .from('cards')
-        .update({ status: 'copy_draft' })
-        .eq('id', d.cardId)
-        .eq('status', card.status);
       if (d.comment) {
         await admin.from('comments').insert({
           card_id: d.cardId,

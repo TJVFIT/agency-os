@@ -99,8 +99,11 @@ export function istanbulMonthRange(now: Date = new Date()): {
  * Cards published this Istanbul month, counted per client per quota type.
  * Primary source: activity_log `publish.success` rows (the dispatcher writes
  * one per successful publish). Fallback: cards sitting in `published` whose
- * update falls in the month but never got a publish.success row (e.g. flipped
- * manually). Each card counts once. `shoot` usage = shoots done this month.
+ * scheduled publish time falls in the month but never got a publish.success
+ * row (e.g. flipped manually). The fallback keys off `scheduled_at` — the
+ * card's intended publish time — never `updated_at`, which any later edit
+ * bumps and would inflate the quota. Each card counts once. `shoot` usage =
+ * shoots done this month.
  */
 export async function monthlyUsage(
   now: Date = new Date(),
@@ -121,8 +124,8 @@ export async function monthlyUsage(
       .from('cards')
       .select('id, client_id, type')
       .eq('status', 'published')
-      .gte('updated_at', startIso)
-      .lt('updated_at', endIso),
+      .gte('scheduled_at', startIso)
+      .lt('scheduled_at', endIso),
     supabase
       .from('shoots')
       .select('id, client_id')

@@ -195,15 +195,24 @@ export function BoardView({
     );
     setToast(null);
 
-    const res = await transitionCardStatus({ cardId, to });
-    if (!res.ok) {
-      // Revert and surface the reason.
+    // Revert the optimistic move back to the source column.
+    const revert = () =>
       setCards((prev) =>
         prev.map((c) =>
           c.id === cardId ? { ...c, status: from as Card['status'] } : c,
         ),
       );
-      setToast({ text: reasonMessage(res.error), tone: 'error' });
+
+    try {
+      const res = await transitionCardStatus({ cardId, to });
+      if (!res.ok) {
+        revert();
+        setToast({ text: reasonMessage(res.error), tone: 'error' });
+      }
+    } catch {
+      // Network/server failure: the action rejected rather than returning !ok.
+      revert();
+      setToast({ text: tr.board.dragError, tone: 'error' });
     }
   }
 

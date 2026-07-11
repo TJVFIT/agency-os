@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
@@ -60,16 +61,36 @@ export function parseRefinedIdea(json: unknown): RefinedIdea | null {
   return parsed.success ? parsed.data : null;
 }
 
-// Per-token sliding window: max 30 submissions / 10 min (module-scoped) —
-// same limiter pattern as app/approve/[token]/actions.ts.
+// Per-IP sliding window: max 30 submissions / 10 min (module-scoped) — same
+// limiter pattern as app/approve/[token]/actions.ts. Keyed on the client IP
+// (SPEC §14 — a caller-supplied token is not a throttle key), with expired
+// windows evicted every call and a hard key cap so a flood of distinct IPs
+// (or forged X-Forwarded-For values) can't exhaust process memory.
 const hits = new Map<string, number[]>();
-export function portalRateLimited(token: string): boolean {
+const WINDOW_MS = 10 * 60_000;
+const MAX_HITS = 30;
+const MAX_KEYS = 10_000;
+
+async function portalClientIp(): Promise<string> {
+  const xff = (await headers()).get('x-forwarded-for');
+  return xff?.split(',')[0]?.trim() || 'unknown';
+}
+
+export async function portalRateLimited(): Promise<boolean> {
+  const ip = await portalClientIp();
   const now = Date.now();
-  const windowMs = 10 * 60_000;
-  const arr = (hits.get(token) ?? []).filter((t) => now - t < windowMs);
+  // Evict expired windows so the map stays bounded under normal traffic.
+  for (const [key, times] of hits) {
+    const kept = times.filter((t) => now - t < WINDOW_MS);
+    if (kept.length === 0) hits.delete(key);
+    else hits.set(key, kept);
+  }
+  // Hard cap: once saturated, shed previously-unseen IPs rather than grow.
+  if (!hits.has(ip) && hits.size >= MAX_KEYS) return true;
+  const arr = hits.get(ip) ?? [];
   arr.push(now);
-  hits.set(token, arr);
-  return arr.length > 30;
+  hits.set(ip, arr);
+  return arr.length > MAX_HITS;
 }
 
 type Admin = ReturnType<typeof createSupabaseAdmin>;
@@ -210,7 +231,7 @@ export async function submitIdea(
 ): Promise<ActionResult> {
   const parsed = ideaInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  if (portalRateLimited(token)) return { ok: false, error: 'rate_limited' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
 
   const admin = createSupabaseAdmin();
   const link = await loadActiveLink(admin, token);
@@ -256,7 +277,7 @@ export async function submitAvailability(
 ): Promise<ActionResult> {
   const parsed = availabilityInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  if (portalRateLimited(token)) return { ok: false, error: 'rate_limited' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
 
   const admin = createSupabaseAdmin();
   const link = await loadActiveLink(admin, token);
@@ -305,7 +326,7 @@ export async function submitDecision(
 ): Promise<ActionResult> {
   const parsed = decisionInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  if (portalRateLimited(token)) return { ok: false, error: 'rate_limited' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
 
   const admin = createSupabaseAdmin();
   const link = await loadActiveLink(admin, token);
@@ -331,12 +352,20 @@ export async function submitDecision(
   if (!awaitingApproval(card.status, langs))
     return { ok: false, error: 'not_awaiting_approval' };
 
+  // Transition under the optimistic lock FIRST and confirm it matched a row.
+  // If 0 rows changed (already decided / raced), return cleanly WITHOUT writing
+  // an activity entry — otherwise we'd log a false 'approval.granted' and fire a
+  // false notification for a decision that never actually landed.
+  const nextStatus = decision === 'approved' ? 'approved' : 'copy_draft';
+  const { data: updated } = await admin
+    .from('cards')
+    .update({ status: nextStatus })
+    .eq('id', cardId)
+    .eq('status', card.status) // optimistic lock against concurrent change
+    .select('id');
+  if (!updated || updated.length === 0) return { ok: true };
+
   if (decision === 'approved') {
-    await admin
-      .from('cards')
-      .update({ status: 'approved' })
-      .eq('id', cardId)
-      .eq('status', card.status); // optimistic lock against concurrent change
     await admin.from('activity_log').insert({
       actor: null,
       client_id: link.client_id,
@@ -345,11 +374,6 @@ export async function submitDecision(
       detail: { comment, source: 'portal' },
     });
   } else {
-    await admin
-      .from('cards')
-      .update({ status: 'copy_draft' })
-      .eq('id', cardId)
-      .eq('status', card.status);
     if (comment) {
       await admin.from('comments').insert({
         card_id: cardId,

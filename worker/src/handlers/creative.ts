@@ -73,19 +73,26 @@ export async function handleIdeaRefine(job: AiJob) {
     ROUTER_DEPS,
   );
 
-  await db()
+  // Only refine ideas still in 'new'. Guarding on status='new' stops a late
+  // refine job from regressing an idea a manager has since accepted/rejected
+  // back to 'refined'. Log only when a row actually flipped.
+  const { data: refinedRows } = await db()
     .from('client_ideas')
     .update({ refined: out.data as unknown as Json, status: 'refined' })
-    .eq('id', idea.id);
+    .eq('id', idea.id)
+    .eq('status', 'new')
+    .select('id');
 
-  await logActivity('ai.idea_refined', {
-    clientId: idea.client_id,
-    detail: {
-      idea_id: idea.id,
-      provider: out._meta.provider,
-      suggested_type: out.data.suggested_type,
-    },
-  });
+  if (refinedRows?.length) {
+    await logActivity('ai.idea_refined', {
+      clientId: idea.client_id,
+      detail: {
+        idea_id: idea.id,
+        provider: out._meta.provider,
+        suggested_type: out.data.suggested_type,
+      },
+    });
+  }
   return withMeta(out.data, out._meta);
 }
 

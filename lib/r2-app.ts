@@ -1,6 +1,10 @@
 import 'server-only';
 
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 /**
@@ -47,10 +51,19 @@ function s3(cfg: R2Config): S3Client {
   return client;
 }
 
-/** Presigned PUT for a direct browser upload; 10-minute expiry. */
+/**
+ * Presigned PUT for a direct browser upload; 10-minute expiry.
+ *
+ * When `contentLength` is provided it is folded into the signature, so the
+ * browser must send exactly that Content-Length or R2 rejects the PUT. This
+ * enforces the SPEC §14 size caps server-side (the caller passes the declared
+ * size after checking it against the per-kind cap) — an oversized or size-lying
+ * upload can no longer succeed against a presigned URL.
+ */
 export async function presignPut(
   key: string,
   contentType: string,
+  contentLength?: number,
 ): Promise<string | null> {
   const cfg = config();
   if (!cfg) return null;
@@ -60,7 +73,35 @@ export async function presignPut(
       Bucket: cfg.bucket,
       Key: key,
       ContentType: contentType,
+      ...(contentLength !== undefined ? { ContentLength: contentLength } : {}),
     }),
     { expiresIn: 600 },
   );
+}
+
+export interface HeadResult {
+  contentType: string | null;
+  contentLength: number | null;
+}
+
+/**
+ * HEAD an object to confirm it exists and read back its stored content-type /
+ * size. Returns null when R2 is unconfigured or the object is missing/denied,
+ * so callers can treat "cannot verify" and "does not exist" as a rejection.
+ */
+export async function headObject(key: string): Promise<HeadResult | null> {
+  const cfg = config();
+  if (!cfg) return null;
+  try {
+    const res = await s3(cfg).send(
+      new HeadObjectCommand({ Bucket: cfg.bucket, Key: key }),
+    );
+    return {
+      contentType: res.ContentType ?? null,
+      contentLength:
+        typeof res.ContentLength === 'number' ? res.ContentLength : null,
+    };
+  } catch {
+    return null;
+  }
 }

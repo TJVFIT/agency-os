@@ -178,11 +178,20 @@ export async function handlePlan(job: AiJob) {
     .single();
   if (error || !client) throw new Error('client not found');
 
+  // Real platforms the planner should aim at = the client's connected social
+  // accounts (deduped). Passing [] left the prompt param blank, so the model
+  // planned in a vacuum.
+  const { data: accounts } = await db()
+    .from('client_social_accounts')
+    .select('platform')
+    .eq('client_id', payload.client_id);
+  const platforms = [...new Set((accounts ?? []).map((a) => a.platform))];
+
   const prompt = buildPlannerPrompt(
     JSON.stringify(client.brand_profile ?? {}),
     {
       langs: client.langs,
-      platforms: [],
+      platforms,
       topPostsJson: '[]',
       weekStart: payload.week_start,
     },
@@ -196,19 +205,45 @@ export async function handlePlan(job: AiJob) {
     { timeoutMs: 30_000, log: (l) => log.debug(l, 'ai') },
   );
 
-  // Create 5 idea cards tagged ai-planned (cron dedupes; see cron.ts).
-  const rows = out.data.ideas.map((idea) => ({
-    client_id: payload.client_id,
-    title: idea.title,
-    type: idea.type,
-    status: 'idea' as const,
-    tags: ['ai-planned'],
-  }));
-  await db().from('cards').insert(rows);
+  // Create idea cards tagged ai-planned (cron dedupes on status='idea'; see
+  // cron.ts). Insert one at a time so each idea's brief can be attached as a
+  // system comment (author null) — otherwise the planner's concrete brief and
+  // suggested day were discarded, leaving title-only cards. The suggested day
+  // is kept as a `day:` tag.
+  let count = 0;
+  for (const idea of out.data.ideas) {
+    const { data: card, error: cardErr } = await db()
+      .from('cards')
+      .insert({
+        client_id: payload.client_id,
+        title: idea.title,
+        type: idea.type,
+        status: 'idea' as const,
+        platforms,
+        tags: ['ai-planned', `day:${idea.suggested_day}`],
+      })
+      .select('id')
+      .single();
+    if (cardErr || !card) {
+      log.warn(
+        { jobId: job.id, err: cardErr?.message },
+        'planner card insert failed',
+      );
+      continue;
+    }
+    count += 1;
+
+    const brief = idea.brief.trim();
+    if (brief) {
+      await db()
+        .from('comments')
+        .insert({ card_id: card.id, author: null, body: `Brief:\n${brief}` });
+    }
+  }
 
   await logActivity('ai.plan_done', {
     clientId: payload.client_id,
-    detail: { provider: out._meta.provider, count: rows.length },
+    detail: { provider: out._meta.provider, count },
   });
   return withMeta(out.data, out._meta);
 }

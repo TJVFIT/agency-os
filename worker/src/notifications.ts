@@ -19,6 +19,7 @@ import { db } from './supabase';
 import { log } from './log';
 import {
   notifyManagers,
+  notifyManagersOnly,
   notifyUser,
   sendApprovalRequest,
   telegramConfigured,
@@ -90,6 +91,13 @@ async function dispatch(row: ActivityEntry): Promise<void> {
           body: `Onay bekliyor: ${title}`,
           url: `/cards/${row.card_id}`,
         });
+      } else if (to === 'visual_ready' && langs.length > 1) {
+        // Multi-lang: visuals are ready but the `translated` step is still
+        // pending before approval — flag it to whoever handles translation.
+        const url = `/cards/${row.card_id}`;
+        const msg = `🌐 Çeviri bekliyor: ${title}`;
+        if (assignee) await notifyUserAll(assignee, msg, url);
+        else await notifyManagersAll(msg, url);
       } else if (to === 'approved' && assignee) {
         await notifyUserAll(
           assignee,
@@ -127,13 +135,28 @@ async function dispatch(row: ActivityEntry): Promise<void> {
       );
       break;
     }
+    case 'card.rejected': {
+      // Manager rejected via the Telegram inline button (telegram.ts logs this
+      // with the one-line reason). Notify the card owner + managers.
+      if (!row.card_id) break;
+      const { title, assignee } = await cardMeta(row.card_id);
+      const reason = (detail.reason as string) || '';
+      const msg = `↩️ Reddedildi, taslağa döndü: ${title}${reason ? ` — "${reason}"` : ''}`;
+      const url = `/cards/${row.card_id}`;
+      await notifyManagersAll(msg, url);
+      if (assignee) await notifyUserAll(assignee, msg, url);
+      break;
+    }
     case 'publish.failed': {
       if (!row.card_id) break;
       const { title } = await cardMeta(row.card_id);
-      await notifyManagersAll(
-        `⚠️ Yayınlama başarısız: ${title}`,
-        `/cards/${row.card_id}`,
-      );
+      // Terminal publish failures are already Telegram-alerted to admins by
+      // queue.failJob (notifyAdmins). Alert managers (non-admins) here so the
+      // same admin isn't pinged twice; push covers everyone with the card link.
+      const msg = `⚠️ Yayınlama başarısız: ${title}`;
+      const url = `/cards/${row.card_id}`;
+      await notifyManagersOnly(msg).catch(() => {});
+      await sendPushToManagers({ title: PUSH_TITLE, body: msg, url });
       break;
     }
     case 'publish.blocked': {
@@ -222,30 +245,51 @@ export function startNotificationLoop(): () => void {
   }
 
   let lastId = 0;
+  let initialized = false;
   let running = false;
   let stopped = false;
 
-  const init = async () => {
-    const { data } = await db()
+  // First successful pass seeds the cursor at max(id) so history isn't
+  // replayed. If the seed query ERRORS we must NOT fall back to 0 — that would
+  // replay the entire activity_log as fresh notifications. Instead stay
+  // uninitialized (cursor untouched, nothing dispatched) and retry next tick.
+  const seedCursor = async (): Promise<boolean> => {
+    const { data, error } = await db()
       .from('activity_log')
       .select('id')
       .order('id', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (error) {
+      log.warn({ err: error.message }, 'notification cursor seed failed');
+      return false;
+    }
     lastId = data?.id ?? 0;
+    initialized = true;
     log.info({ lastId }, 'notification loop started');
+    return true;
   };
 
   const tick = async () => {
     if (running || stopped) return;
     running = true;
     try {
-      const { data: rows } = await db()
+      if (!initialized) {
+        // Seed (or retry seeding) the cursor; never dispatch on this pass.
+        await seedCursor();
+        return;
+      }
+      const { data: rows, error } = await db()
         .from('activity_log')
         .select('*')
         .gt('id', lastId)
         .order('id', { ascending: true })
         .limit(50);
+      if (error) {
+        // Keep the cursor where it is and try again next tick — no flood.
+        log.warn({ err: error.message }, 'notification fetch failed');
+        return;
+      }
       for (const row of (rows ?? []) as ActivityEntry[]) {
         lastId = Math.max(lastId, row.id);
         try {
@@ -264,13 +308,10 @@ export function startNotificationLoop(): () => void {
     }
   };
 
-  let timer: ReturnType<typeof setInterval> | undefined;
-  void init().then(() => {
-    if (!stopped) timer = setInterval(tick, POLL_MS);
-  });
+  const timer: ReturnType<typeof setInterval> = setInterval(tick, POLL_MS);
 
   return () => {
     stopped = true;
-    if (timer) clearInterval(timer);
+    clearInterval(timer);
   };
 }

@@ -13,6 +13,11 @@
 
 import cron from 'node-cron';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import {
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 import { checkCompliance, type ComplianceIssue } from '../../lib/compliance';
 import { parseBrandProfile } from '../../lib/db/domain';
@@ -21,6 +26,7 @@ import { db, logActivity } from './supabase';
 import { notifyManagers, notifyUser } from './telegram';
 import { mayAutoAct } from './automation';
 import { sendPushToManagers, sendPushToProfile } from './push';
+import { r2Configured } from './r2';
 import { log } from './log';
 import { workerEnv } from './env';
 
@@ -61,14 +67,18 @@ async function insertSuggestion(opts: {
   dedupeBody?: Record<string, unknown>;
   batched?: boolean;
 }): Promise<boolean> {
+  // clientId is always ANDed in (when present) so a per-client dedupe can be
+  // narrowed further by cardId or a body match — e.g. a client's weekly
+  // planner/report suggestion is keyed by client *and* week, so a stale row
+  // from a prior week no longer blocks the current week.
   let dedupe = db()
     .from('suggestions')
     .select('id')
     .eq('status', 'pending')
     .eq('domain', opts.domain);
+  if (opts.clientId) dedupe = dedupe.eq('client_id', opts.clientId);
   if (opts.cardId) dedupe = dedupe.eq('card_id', opts.cardId);
   else if (opts.dedupeBody) dedupe = dedupe.contains('body', opts.dedupeBody);
-  else if (opts.clientId) dedupe = dedupe.eq('client_id', opts.clientId);
   const { data: existing } = await dedupe.limit(1);
   if (existing?.length) return false;
 
@@ -177,6 +187,43 @@ async function dispatchScheduled(): Promise<void> {
       .contains('payload', { card_id: card.id });
     if (existing?.length) continue;
 
+    // Approval gate (mirrors handlePublish's defense-in-depth check). A card
+    // that reached 'scheduled' without an 'approved' activity_log record would
+    // be skipped 'no_approval' by handlePublish and left 'done' — the card
+    // stays 'scheduled' and, since 'done' isn't in the dedupe set above, the
+    // dispatcher would enqueue a fresh publish job every 60s forever. Surface
+    // it once via a pending suggestion (which also dedupes later ticks) and
+    // never enqueue.
+    const { count: approvals } = await db()
+      .from('activity_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('card_id', card.id)
+      .eq('action', 'card.status_changed')
+      .contains('detail', { to: 'approved' });
+    if (!approvals) {
+      const fresh = await insertSuggestion({
+        domain: 'missing_work',
+        title: `Onay kaydı yok: ${card.title}`,
+        body: { kind: 'info', reason: 'no_approval' },
+        clientId: card.client_id,
+        cardId: card.id,
+        batched: true, // notified once below, not per-row
+      });
+      if (fresh) {
+        await logActivity('publish.blocked', {
+          clientId: card.client_id,
+          cardId: card.id,
+          detail: { reason: 'no_approval' },
+        });
+        await managersAll(
+          `⚠️ Yayın engellendi: ${card.title} — onay kaydı yok, kart planlıda takıldı.`,
+          `/clients/${card.client_id}`,
+        );
+        log.warn({ card_id: card.id }, 'publish blocked: no approval record');
+      }
+      continue;
+    }
+
     // Compliance gate — a failing card never reaches the publish queue.
     // The suggestion insert doubles as the dedupe: while it stays pending
     // the 60s ticks stay silent (no publish.blocked spam).
@@ -264,12 +311,14 @@ async function runPlanner(): Promise<void> {
         title: `Haftalık plan: ${client.name}`,
         body: {
           kind: 'enqueue_job',
+          week_start: weekStart, // dedupe key: one row per client *per week*
           job: {
             kind: 'plan',
             payload: { client_id: client.id, week_start: weekStart },
           },
         },
         clientId: client.id,
+        dedupeBody: { week_start: weekStart },
         batched: true, // one summary below instead of a ping per client
       });
       if (fresh) suggested += 1;
@@ -422,12 +471,14 @@ async function runReports(): Promise<void> {
         title: `Haftalık rapor: ${client.name}`,
         body: {
           kind: 'enqueue_job',
+          week_start: weekStart, // dedupe key: one row per client *per week*
           job: {
             kind: 'report',
             payload: { client_id: client.id, week_start: weekStart, metrics },
           },
         },
         clientId: client.id,
+        dedupeBody: { week_start: weekStart },
         batched: true,
       });
       if (fresh) suggested += 1;
@@ -663,7 +714,7 @@ async function runGapRadar(): Promise<void> {
   }
 }
 
-// ---------- daily 03:00 retention pruning (SPEC §3) ----------
+// ---------- daily 03:00 retention pruning (SPEC §3 + §11) ----------
 async function runRetention(): Promise<void> {
   const yearAgo = new Date(Date.now() - 365 * DAY_MS).toISOString();
   const sixtyDaysAgo = new Date(Date.now() - 60 * DAY_MS).toISOString();
@@ -673,7 +724,67 @@ async function runRetention(): Promise<void> {
     .delete()
     .in('status', ['done', 'error'])
     .lt('updated_at', sixtyDaysAgo);
+  await sweepRawInputs();
   log.info('retention pruning done');
+}
+
+// R2 lifecycle sweep (SPEC §11): raw reel/upload inputs live under private/ and
+// are only needed until their variants render. Best-effort delete of anything
+// under private/ older than 30 days; skips quietly when R2 is unconfigured and
+// never throws into the cron. r2.ts exposes no list/delete, so a scoped
+// S3 client is built here (same config as r2.ts) to avoid touching that file.
+const RAW_PREFIX = 'private/';
+const RAW_MAX_AGE_MS = 30 * DAY_MS;
+
+async function sweepRawInputs(): Promise<void> {
+  if (!r2Configured()) return;
+  const env = workerEnv();
+  const s3 = new S3Client({
+    region: 'auto',
+    endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: env.R2_SECRET_ACCESS_KEY!,
+    },
+  });
+  const cutoff = Date.now() - RAW_MAX_AGE_MS;
+  let token: string | undefined;
+  let deleted = 0;
+  try {
+    do {
+      const page = await s3.send(
+        new ListObjectsV2Command({
+          Bucket: env.R2_BUCKET,
+          Prefix: RAW_PREFIX,
+          ContinuationToken: token,
+        }),
+      );
+      const stale = (page.Contents ?? []).filter(
+        (o) => o.Key && o.LastModified && o.LastModified.getTime() < cutoff,
+      );
+      if (stale.length) {
+        await s3.send(
+          new DeleteObjectsCommand({
+            Bucket: env.R2_BUCKET,
+            Delete: {
+              Objects: stale.map((o) => ({ Key: o.Key! })),
+              Quiet: true,
+            },
+          }),
+        );
+        deleted += stale.length;
+      }
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+    if (deleted > 0) {
+      await logActivity('retention.r2_sweep', {
+        detail: { prefix: RAW_PREFIX, deleted, older_than_days: 30 },
+      }).catch(() => {});
+      log.info({ deleted }, 'R2 raw-input sweep done');
+    }
+  } catch (e) {
+    log.warn({ err: String(e) }, 'R2 raw-input sweep failed (best-effort)');
+  }
 }
 
 function thisMondayIso(): string {

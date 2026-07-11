@@ -34,16 +34,20 @@ export function ScheduleDialog({
   pending: boolean;
   onSubmit: (input: { scheduledAt: string; platforms: Platform[] }) => void;
 }) {
-  const [local, setLocal] = useState('');
-  const [selected, setSelected] = useState<Platform[]>(
-    currentPlatforms.filter(isPlatform),
-  );
-  const [error, setError] = useState<string | null>(null);
-
-  // Distinct platforms the client actually has accounts for.
+  // Distinct platforms the client actually has connected accounts for.
   const available = Array.from(
     new Set(accounts.map((a) => a.platform).filter(isPlatform)),
   ) as Platform[];
+
+  const [local, setLocal] = useState('');
+  // Preselect only card platforms that have a matching connected account —
+  // orphans have no checkbox and must not be silently submitted.
+  const [selected, setSelected] = useState<Platform[]>(
+    currentPlatforms.filter(
+      (p): p is Platform => isPlatform(p) && available.includes(p),
+    ),
+  );
+  const [error, setError] = useState<string | null>(null);
 
   function toggle(p: Platform) {
     setSelected((prev) =>
@@ -62,11 +66,13 @@ export function ScheduleDialog({
       setError(tr.statusReasons.schedule_requires_future_date);
       return;
     }
-    if (selected.length === 0) {
+    // Guard against submitting platforms with no connected account.
+    const platforms = selected.filter((p) => available.includes(p));
+    if (platforms.length === 0) {
       setError(tr.statusReasons.schedule_requires_platform);
       return;
     }
-    onSubmit({ scheduledAt: utc.toISOString(), platforms: selected });
+    onSubmit({ scheduledAt: utc.toISOString(), platforms });
   }
 
   return (

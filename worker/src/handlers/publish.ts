@@ -152,18 +152,55 @@ export async function handlePublish(job: AiJob) {
     );
   }
 
-  const results: PostizResult[] = [];
+  // Platforms on the card with no mapped integration are NOT published here.
+  // They must be surfaced (manual post) rather than silently dropped while the
+  // card flips to 'published'.
+  const mappedPlatforms = new Set(mapped.map((a) => a.platform));
+  const unmapped = card.platforms.filter((p) => !mappedPlatforms.has(p));
+
+  // Idempotency (CLAUDE.md rule 1 + no double-posting): a prior attempt may
+  // have already posted to some integrations before a later one failed and the
+  // whole job was retried. Successes are persisted into ai_jobs.result.posts;
+  // skip any integration already there and only attempt the rest. The card is
+  // flipped to 'published' exactly once, on full success of all mapped ones.
+  const prior = (job.result ?? {}) as { posts?: PostizResult[] };
+  const results: PostizResult[] = [...(prior.posts ?? [])];
+  const alreadyPosted = new Set(results.map((r) => r.platform));
+
   for (const acc of mapped) {
-    results.push(
-      await postizCreatePost(acc.postiz_integration_id!, body, mediaUrls),
-    );
+    const integrationId = acc.postiz_integration_id!;
+    if (alreadyPosted.has(integrationId)) continue; // succeeded on a prior try
+    const res = await postizCreatePost(integrationId, body, mediaUrls);
+    results.push(res);
+    alreadyPosted.add(integrationId);
+    // Persist progress immediately so a failure on a later platform can't cause
+    // this integration to be posted twice when the job retries.
+    await db()
+      .from('ai_jobs')
+      .update({ result: { posts: results } as never })
+      .eq('id', job.id);
   }
 
+  // All mapped integrations succeeded — publish once.
   await db().from('cards').update({ status: 'published' }).eq('id', card_id);
+
+  if (unmapped.length) {
+    // Surface the gap: mapped platforms went live, unmapped ones need a manual
+    // post. Log + ping managers so it isn't a silent success.
+    await logActivity('publish.manual_needed', {
+      clientId: card.client_id,
+      cardId: card_id,
+      detail: { platforms: unmapped, reason: 'unmapped_integration' },
+    });
+    await notifyManagers(
+      `📣 Kısmi yayın: kart ${card_id} — şu platformlar Postiz'e bağlı değil, elle paylaşın: ${unmapped.join(', ')}`,
+    ).catch(() => {});
+  }
+
   await logActivity('publish.success', {
     clientId: card.client_id,
     cardId: card_id,
-    detail: { posts: results },
+    detail: { posts: results, ...(unmapped.length ? { unmapped } : {}) },
   });
-  return { posts: results };
+  return { posts: results, unmapped };
 }

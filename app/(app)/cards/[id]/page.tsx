@@ -70,6 +70,7 @@ export default async function CardPage({
             cardId={card.id}
             langs={langs}
             userId={session?.userId ?? null}
+            platforms={card.platforms}
           />
         </div>
 

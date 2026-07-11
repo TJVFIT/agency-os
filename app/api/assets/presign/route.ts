@@ -40,7 +40,9 @@ export async function POST(request: Request) {
   // Raw uploads live under private/ (SPEC: variants under public/).
   const key = `private/${clientId}/uploads/${crypto.randomUUID()}.${ext}`;
 
-  const url = await presignPut(key, contentType);
+  // Bind the presigned PUT to the declared (cap-checked) size so R2 rejects
+  // an oversized upload server-side (SPEC §14).
+  const url = await presignPut(key, contentType, size);
   if (!url)
     return NextResponse.json({ error: 'r2_not_configured' }, { status: 503 });
 

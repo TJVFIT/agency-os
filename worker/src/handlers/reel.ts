@@ -297,6 +297,26 @@ async function uploadRender(
 ): Promise<string> {
   const key = `public/${clientId}/reels/${cardId}-${lang}.mp4`;
   await putObject(key, buf, 'video/mp4');
+  // The render key is deterministic per card+lang and putObject overwrites the
+  // same R2 object on re-render, so reuse the existing asset row instead of
+  // inserting a duplicate that points at the same (replaced) media.
+  const { data: existing } = await db()
+    .from('assets')
+    .select('id')
+    .eq('client_id', clientId)
+    .eq('r2_key', key)
+    .maybeSingle();
+  if (existing) {
+    await db()
+      .from('assets')
+      .update({
+        kind: 'video',
+        original_name: `reel-${lang}.mp4`,
+        source: 'render',
+      })
+      .eq('id', existing.id);
+    return existing.id;
+  }
   const { data } = await db()
     .from('assets')
     .insert({

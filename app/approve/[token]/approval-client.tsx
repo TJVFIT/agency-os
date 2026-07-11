@@ -43,15 +43,22 @@ export function ApprovalClient({
   }
 
   function submit(all?: Decision) {
-    const payload = view.cards.map((c) => {
-      const chosen = all
-        ? { decision: all, comment: '' }
-        : (decisions[c.id] ?? {
-            decision: 'approved' as Decision,
-            comment: '',
+    // 'Hepsini onayla' is the deliberate approve-all. The plain confirm only
+    // submits cards the client explicitly decided — an undecided card is never
+    // sent (and therefore never silently approved).
+    const payload = all
+      ? view.cards.map((c) => ({ cardId: c.id, decision: all, comment: '' }))
+      : view.cards
+          .filter((c) => decisions[c.id])
+          .map((c) => {
+            const chosen = decisions[c.id]!;
+            return {
+              cardId: c.id,
+              decision: chosen.decision,
+              comment: chosen.comment,
+            };
           });
-      return { cardId: c.id, ...chosen };
-    });
+    if (payload.length === 0) return;
     startTransition(async () => {
       const res = await submitApprovalDecisions({ token, decisions: payload });
       if (res.ok) setDone(true);

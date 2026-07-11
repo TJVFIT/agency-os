@@ -65,6 +65,7 @@ export function CalendarView({
   const [anchor, setAnchor] = useState<Date>(() => istanbulWeekStart());
   const [link, setLink] = useState<{ whatsapp: string } | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const sensors = useSensors(
@@ -181,10 +182,23 @@ export function CalendarView({
     setCards((prev) =>
       prev.map((c) => (c.id === cardId ? { ...c, [field]: atIso } : c)),
     );
+    setRescheduleError(null);
 
     startTransition(async () => {
-      const res = await rescheduleCard({ cardId, at: atIso });
-      if (!res.ok) setCards(snapshot); // revert
+      try {
+        const res = await rescheduleCard({ cardId, at: atIso });
+        if (!res.ok) {
+          setCards(snapshot); // revert
+          setRescheduleError(
+            tr.statusReasons[res.error as keyof typeof tr.statusReasons] ??
+              tr.board.dragError,
+          );
+        }
+      } catch {
+        // Network/server failure: revert and tell the user why.
+        setCards(snapshot);
+        setRescheduleError(tr.board.dragError);
+      }
     });
   }
 
@@ -269,6 +283,10 @@ export function CalendarView({
 
       {approvalError && (
         <p className="mb-3 text-sm text-red-400">{approvalError}</p>
+      )}
+
+      {rescheduleError && (
+        <p className="mb-3 text-sm text-red-400">{rescheduleError}</p>
       )}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
