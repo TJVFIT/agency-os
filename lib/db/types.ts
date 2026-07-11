@@ -1,1268 +1,1394 @@
-/**
- * Database types — hand-written to mirror supabase/migrations exactly,
- * in the same shape `supabase gen types typescript` produces.
- *
- * TODO(after `supabase link`): regenerate with
- *   pnpm supabase gen types typescript --linked > lib/db/types.ts
- * and diff against this file — they must agree.
- */
-
 export type Json =
   | string
   | number
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      profiles: {
-        Row: {
-          id: string;
-          full_name: string;
-          role: Database['public']['Enums']['user_role'];
-          telegram_chat_id: number | null;
-          created_at: string;
-        };
-        Insert: {
-          id: string;
-          full_name?: string;
-          role?: Database['public']['Enums']['user_role'];
-          telegram_chat_id?: number | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          full_name?: string;
-          role?: Database['public']['Enums']['user_role'];
-          telegram_chat_id?: number | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      clients: {
-        Row: {
-          id: string;
-          name: string;
-          slug: string;
-          industry: string;
-          langs: string[];
-          brand_profile: Json;
-          glossary: Json;
-          hashtag_bank: string[];
-          colors: Json;
-          location: Json;
-          logo_asset_id: string | null;
-          active: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          slug: string;
-          industry?: string;
-          langs?: string[];
-          brand_profile?: Json;
-          glossary?: Json;
-          hashtag_bank?: string[];
-          colors?: Json;
-          location?: Json;
-          logo_asset_id?: string | null;
-          active?: boolean;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          slug?: string;
-          industry?: string;
-          langs?: string[];
-          brand_profile?: Json;
-          glossary?: Json;
-          hashtag_bank?: string[];
-          colors?: Json;
-          location?: Json;
-          logo_asset_id?: string | null;
-          active?: boolean;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'clients_logo_fk';
-            columns: ['logo_asset_id'];
-            isOneToOne: false;
-            referencedRelation: 'assets';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      client_social_accounts: {
-        Row: {
-          id: string;
-          client_id: string;
-          platform: string;
-          handle: string;
-          postiz_integration_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          platform: string;
-          handle: string;
-          postiz_integration_id?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          platform?: string;
-          handle?: string;
-          postiz_integration_id?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'client_social_accounts_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      assets: {
-        Row: {
-          id: string;
-          client_id: string;
-          kind: Database['public']['Enums']['asset_kind'];
-          r2_key: string;
-          original_name: string;
-          width: number | null;
-          height: number | null;
-          duration_s: number | null;
-          variants: Json;
-          source: Database['public']['Enums']['asset_source'];
-          uploaded_by: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          kind: Database['public']['Enums']['asset_kind'];
-          r2_key: string;
-          original_name?: string;
-          width?: number | null;
-          height?: number | null;
-          duration_s?: number | null;
-          variants?: Json;
-          source?: Database['public']['Enums']['asset_source'];
-          uploaded_by?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          kind?: Database['public']['Enums']['asset_kind'];
-          r2_key?: string;
-          original_name?: string;
-          width?: number | null;
-          height?: number | null;
-          duration_s?: number | null;
-          variants?: Json;
-          source?: Database['public']['Enums']['asset_source'];
-          uploaded_by?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'assets_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'assets_uploaded_by_fkey';
-            columns: ['uploaded_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      cards: {
-        Row: {
-          id: string;
-          client_id: string;
-          type: Database['public']['Enums']['card_type'];
-          title: string;
-          status: Database['public']['Enums']['card_status'];
-          assignee: string | null;
-          due_at: string | null;
-          scheduled_at: string | null;
-          platforms: string[];
-          priority: number;
-          tags: string[];
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          type?: Database['public']['Enums']['card_type'];
-          title: string;
-          status?: Database['public']['Enums']['card_status'];
-          assignee?: string | null;
-          due_at?: string | null;
-          scheduled_at?: string | null;
-          platforms?: string[];
-          priority?: number;
-          tags?: string[];
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          type?: Database['public']['Enums']['card_type'];
-          title?: string;
-          status?: Database['public']['Enums']['card_status'];
-          assignee?: string | null;
-          due_at?: string | null;
-          scheduled_at?: string | null;
-          platforms?: string[];
-          priority?: number;
-          tags?: string[];
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'cards_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'cards_assignee_fkey';
-            columns: ['assignee'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'cards_created_by_fkey';
-            columns: ['created_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      card_contents: {
-        Row: {
-          card_id: string;
-          lang: string;
-          caption: string;
-          hashtags: string[];
-          media_asset_ids: string[];
-          updated_by: string | null;
-          updated_at: string;
-        };
-        Insert: {
-          card_id: string;
-          lang: string;
-          caption?: string;
-          hashtags?: string[];
-          media_asset_ids?: string[];
-          updated_by?: string | null;
-          updated_at?: string;
-        };
-        Update: {
-          card_id?: string;
-          lang?: string;
-          caption?: string;
-          hashtags?: string[];
-          media_asset_ids?: string[];
-          updated_by?: string | null;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'card_contents_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'card_contents_updated_by_fkey';
-            columns: ['updated_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      comments: {
-        Row: {
-          id: string;
-          card_id: string;
-          author: string | null;
-          body: string;
-          asset_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          card_id: string;
-          author?: string | null;
-          body: string;
-          asset_id?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          card_id?: string;
-          author?: string | null;
-          body?: string;
-          asset_id?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'comments_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'comments_author_fkey';
-            columns: ['author'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'comments_asset_id_fkey';
-            columns: ['asset_id'];
-            isOneToOne: false;
-            referencedRelation: 'assets';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
       activity_log: {
         Row: {
-          id: number;
-          actor: string | null;
-          client_id: string | null;
-          card_id: string | null;
-          action: string;
-          detail: Json;
-          created_at: string;
-        };
+          action: string
+          actor: string | null
+          card_id: string | null
+          client_id: string | null
+          created_at: string
+          detail: Json
+          id: number
+        }
         Insert: {
-          id?: never;
-          actor?: string | null;
-          client_id?: string | null;
-          card_id?: string | null;
-          action: string;
-          detail?: Json;
-          created_at?: string;
-        };
+          action: string
+          actor?: string | null
+          card_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: never
+        }
         Update: {
-          id?: never;
-          actor?: string | null;
-          client_id?: string | null;
-          card_id?: string | null;
-          action?: string;
-          detail?: Json;
-          created_at?: string;
-        };
+          action?: string
+          actor?: string | null
+          card_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: never
+        }
         Relationships: [
           {
-            foreignKeyName: 'activity_log_actor_fkey';
-            columns: ['actor'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
+            foreignKeyName: "activity_log_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'activity_log_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
+            foreignKeyName: "activity_log_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'activity_log_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
+            foreignKeyName: "activity_log_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
           },
-        ];
-      };
-      ai_jobs: {
-        Row: {
-          id: string;
-          kind: Database['public']['Enums']['job_kind'];
-          payload: Json;
-          status: Database['public']['Enums']['job_status'];
-          result: Json | null;
-          error: string | null;
-          attempts: number;
-          run_after: string;
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          kind: Database['public']['Enums']['job_kind'];
-          payload?: Json;
-          status?: Database['public']['Enums']['job_status'];
-          result?: Json | null;
-          error?: string | null;
-          attempts?: number;
-          run_after?: string;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          kind?: Database['public']['Enums']['job_kind'];
-          payload?: Json;
-          status?: Database['public']['Enums']['job_status'];
-          result?: Json | null;
-          error?: string | null;
-          attempts?: number;
-          run_after?: string;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'ai_jobs_created_by_fkey';
-            columns: ['created_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      approval_links: {
-        Row: {
-          id: string;
-          client_id: string;
-          token: string;
-          week_start: string;
-          expires_at: string;
-          created_by: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          token: string;
-          week_start: string;
-          expires_at: string;
-          created_by?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          token?: string;
-          week_start?: string;
-          expires_at?: string;
-          created_by?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'approval_links_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'approval_links_created_by_fkey';
-            columns: ['created_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      approval_actions: {
-        Row: {
-          id: string;
-          approval_link_id: string;
-          card_id: string;
-          decision: Database['public']['Enums']['approval_decision'];
-          comment: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          approval_link_id: string;
-          card_id: string;
-          decision: Database['public']['Enums']['approval_decision'];
-          comment?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          approval_link_id?: string;
-          card_id?: string;
-          decision?: Database['public']['Enums']['approval_decision'];
-          comment?: string;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'approval_actions_approval_link_id_fkey';
-            columns: ['approval_link_id'];
-            isOneToOne: false;
-            referencedRelation: 'approval_links';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'approval_actions_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      telegram_link_codes: {
-        Row: {
-          code: string;
-          profile_id: string;
-          expires_at: string;
-          created_at: string;
-        };
-        Insert: {
-          code: string;
-          profile_id: string;
-          expires_at: string;
-          created_at?: string;
-        };
-        Update: {
-          code?: string;
-          profile_id?: string;
-          expires_at?: string;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'telegram_link_codes_profile_id_fkey';
-            columns: ['profile_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      reports: {
-        Row: {
-          id: string;
-          client_id: string;
-          week_start: string;
-          body_md: string;
-          metrics: Json;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          week_start: string;
-          body_md?: string;
-          metrics?: Json;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          week_start?: string;
-          body_md?: string;
-          metrics?: Json;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'reports_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      portal_links: {
-        Row: {
-          id: string;
-          client_id: string;
-          token: string;
-          active: boolean;
-          created_by: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          token: string;
-          active?: boolean;
-          created_by?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          token?: string;
-          active?: boolean;
-          created_by?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'portal_links_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'portal_links_created_by_fkey';
-            columns: ['created_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      client_ideas: {
-        Row: {
-          id: string;
-          client_id: string;
-          portal_link_id: string | null;
-          title: string;
-          body: string;
-          status: Database['public']['Enums']['idea_status'];
-          refined: Json | null;
-          card_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          portal_link_id?: string | null;
-          title: string;
-          body?: string;
-          status?: Database['public']['Enums']['idea_status'];
-          refined?: Json | null;
-          card_id?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          portal_link_id?: string | null;
-          title?: string;
-          body?: string;
-          status?: Database['public']['Enums']['idea_status'];
-          refined?: Json | null;
-          card_id?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'client_ideas_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'client_ideas_portal_link_id_fkey';
-            columns: ['portal_link_id'];
-            isOneToOne: false;
-            referencedRelation: 'portal_links';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'client_ideas_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      client_availability: {
-        Row: {
-          id: string;
-          client_id: string;
-          portal_link_id: string | null;
-          starts_at: string;
-          ends_at: string;
-          note: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          portal_link_id?: string | null;
-          starts_at: string;
-          ends_at: string;
-          note?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          portal_link_id?: string | null;
-          starts_at?: string;
-          ends_at?: string;
-          note?: string;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'client_availability_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'client_availability_portal_link_id_fkey';
-            columns: ['portal_link_id'];
-            isOneToOne: false;
-            referencedRelation: 'portal_links';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      vehicles: {
-        Row: {
-          id: string;
-          name: string;
-          plate: string;
-          capacity: number;
-          active: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          plate?: string;
-          capacity?: number;
-          active?: boolean;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          plate?: string;
-          capacity?: number;
-          active?: boolean;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      staff_leaves: {
-        Row: {
-          id: string;
-          profile_id: string;
-          starts_on: string;
-          ends_on: string;
-          note: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          profile_id: string;
-          starts_on: string;
-          ends_on: string;
-          note?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          profile_id?: string;
-          starts_on?: string;
-          ends_on?: string;
-          note?: string;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'staff_leaves_profile_id_fkey';
-            columns: ['profile_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      shoots: {
-        Row: {
-          id: string;
-          client_id: string;
-          card_id: string | null;
-          title: string;
-          brief_md: string;
-          status: Database['public']['Enums']['shoot_status'];
-          starts_at: string;
-          ends_at: string;
-          crew: string[];
-          vehicle_id: string | null;
-          location: Json;
-          tasks_opened: boolean;
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          card_id?: string | null;
-          title: string;
-          brief_md?: string;
-          status?: Database['public']['Enums']['shoot_status'];
-          starts_at: string;
-          ends_at: string;
-          crew?: string[];
-          vehicle_id?: string | null;
-          location?: Json;
-          tasks_opened?: boolean;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          card_id?: string | null;
-          title?: string;
-          brief_md?: string;
-          status?: Database['public']['Enums']['shoot_status'];
-          starts_at?: string;
-          ends_at?: string;
-          crew?: string[];
-          vehicle_id?: string | null;
-          location?: Json;
-          tasks_opened?: boolean;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'shoots_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'shoots_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'shoots_vehicle_id_fkey';
-            columns: ['vehicle_id'];
-            isOneToOne: false;
-            referencedRelation: 'vehicles';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'shoots_created_by_fkey';
-            columns: ['created_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      client_packages: {
-        Row: {
-          id: string;
-          client_id: string;
-          name: string;
-          monthly: Json;
-          price: number;
-          currency: string;
-          starts_on: string;
-          active: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          name: string;
-          monthly?: Json;
-          price?: number;
-          currency?: string;
-          starts_on?: string;
-          active?: boolean;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          name?: string;
-          monthly?: Json;
-          price?: number;
-          currency?: string;
-          starts_on?: string;
-          active?: boolean;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'client_packages_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      payments: {
-        Row: {
-          id: string;
-          client_id: string;
-          kind: Database['public']['Enums']['payment_kind'];
-          title: string;
-          amount: number;
-          currency: string;
-          due_on: string;
-          paid_on: string | null;
-          status: Database['public']['Enums']['payment_status'];
-          note: string;
-          created_by: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          kind?: Database['public']['Enums']['payment_kind'];
-          title: string;
-          amount: number;
-          currency?: string;
-          due_on: string;
-          paid_on?: string | null;
-          status?: Database['public']['Enums']['payment_status'];
-          note?: string;
-          created_by?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          client_id?: string;
-          kind?: Database['public']['Enums']['payment_kind'];
-          title?: string;
-          amount?: number;
-          currency?: string;
-          due_on?: string;
-          paid_on?: string | null;
-          status?: Database['public']['Enums']['payment_status'];
-          note?: string;
-          created_by?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'payments_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'payments_created_by_fkey';
-            columns: ['created_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
+        ]
+      }
       ad_tasks: {
         Row: {
-          id: string;
-          client_id: string;
-          card_id: string | null;
-          platform: string;
-          objective: string;
-          budget: number;
-          currency: string;
-          starts_on: string | null;
-          ends_on: string | null;
-          status: Database['public']['Enums']['ad_status'];
-          results: Json;
-          created_by: string | null;
-          created_at: string;
-        };
+          budget: number
+          card_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          ends_on: string | null
+          id: string
+          objective: string
+          platform: string
+          results: Json
+          starts_on: string | null
+          status: Database["public"]["Enums"]["ad_status"]
+        }
         Insert: {
-          id?: string;
-          client_id: string;
-          card_id?: string | null;
-          platform: string;
-          objective?: string;
-          budget?: number;
-          currency?: string;
-          starts_on?: string | null;
-          ends_on?: string | null;
-          status?: Database['public']['Enums']['ad_status'];
-          results?: Json;
-          created_by?: string | null;
-          created_at?: string;
-        };
+          budget?: number
+          card_id?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          ends_on?: string | null
+          id?: string
+          objective?: string
+          platform: string
+          results?: Json
+          starts_on?: string | null
+          status?: Database["public"]["Enums"]["ad_status"]
+        }
         Update: {
-          id?: string;
-          client_id?: string;
-          card_id?: string | null;
-          platform?: string;
-          objective?: string;
-          budget?: number;
-          currency?: string;
-          starts_on?: string | null;
-          ends_on?: string | null;
-          status?: Database['public']['Enums']['ad_status'];
-          results?: Json;
-          created_by?: string | null;
-          created_at?: string;
-        };
+          budget?: number
+          card_id?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          ends_on?: string | null
+          id?: string
+          objective?: string
+          platform?: string
+          results?: Json
+          starts_on?: string | null
+          status?: Database["public"]["Enums"]["ad_status"]
+        }
         Relationships: [
           {
-            foreignKeyName: 'ad_tasks_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
+            foreignKeyName: "ad_tasks_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'ad_tasks_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
+            foreignKeyName: "ad_tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'ad_tasks_created_by_fkey';
-            columns: ['created_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
+            foreignKeyName: "ad_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
+      ai_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          kind: Database["public"]["Enums"]["job_kind"]
+          payload: Json
+          result: Json | null
+          run_after: string
+          status: Database["public"]["Enums"]["job_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["job_kind"]
+          payload?: Json
+          result?: Json | null
+          run_after?: string
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["job_kind"]
+          payload?: Json
+          result?: Json | null
+          run_after?: string
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_jobs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_actions: {
+        Row: {
+          approval_link_id: string
+          card_id: string
+          comment: string
+          created_at: string
+          decision: Database["public"]["Enums"]["approval_decision"]
+          id: string
+        }
+        Insert: {
+          approval_link_id: string
+          card_id: string
+          comment?: string
+          created_at?: string
+          decision: Database["public"]["Enums"]["approval_decision"]
+          id?: string
+        }
+        Update: {
+          approval_link_id?: string
+          card_id?: string
+          comment?: string
+          created_at?: string
+          decision?: Database["public"]["Enums"]["approval_decision"]
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_actions_approval_link_id_fkey"
+            columns: ["approval_link_id"]
+            isOneToOne: false
+            referencedRelation: "approval_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_actions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_links: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          token: string
+          week_start: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          token: string
+          week_start: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          client_id: string
+          created_at: string
+          duration_s: number | null
+          height: number | null
+          id: string
+          kind: Database["public"]["Enums"]["asset_kind"]
+          original_name: string
+          r2_key: string
+          source: Database["public"]["Enums"]["asset_source"]
+          uploaded_by: string | null
+          variants: Json
+          width: number | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          duration_s?: number | null
+          height?: number | null
+          id?: string
+          kind: Database["public"]["Enums"]["asset_kind"]
+          original_name?: string
+          r2_key: string
+          source?: Database["public"]["Enums"]["asset_source"]
+          uploaded_by?: string | null
+          variants?: Json
+          width?: number | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          duration_s?: number | null
+          height?: number | null
+          id?: string
+          kind?: Database["public"]["Enums"]["asset_kind"]
+          original_name?: string
+          r2_key?: string
+          source?: Database["public"]["Enums"]["asset_source"]
+          uploaded_by?: string | null
+          variants?: Json
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_settings: {
         Row: {
-          key: string;
-          mode: Database['public']['Enums']['automation_mode'];
-          updated_by: string | null;
-          updated_at: string;
-        };
+          key: string
+          mode: Database["public"]["Enums"]["automation_mode"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          key: string;
-          mode?: Database['public']['Enums']['automation_mode'];
-          updated_by?: string | null;
-          updated_at?: string;
-        };
+          key: string
+          mode?: Database["public"]["Enums"]["automation_mode"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          key?: string;
-          mode?: Database['public']['Enums']['automation_mode'];
-          updated_by?: string | null;
-          updated_at?: string;
-        };
+          key?: string
+          mode?: Database["public"]["Enums"]["automation_mode"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: 'automation_settings_updated_by_fkey';
-            columns: ['updated_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
+            foreignKeyName: "automation_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
-      suggestions: {
+        ]
+      }
+      card_contents: {
         Row: {
-          id: string;
-          domain: string;
-          title: string;
-          body: Json;
-          status: Database['public']['Enums']['suggestion_status'];
-          client_id: string | null;
-          card_id: string | null;
-          created_at: string;
-          resolved_by: string | null;
-          resolved_at: string | null;
-        };
+          caption: string
+          card_id: string
+          hashtags: string[]
+          lang: string
+          media_asset_ids: string[]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          domain: string;
-          title: string;
-          body?: Json;
-          status?: Database['public']['Enums']['suggestion_status'];
-          client_id?: string | null;
-          card_id?: string | null;
-          created_at?: string;
-          resolved_by?: string | null;
-          resolved_at?: string | null;
-        };
+          caption?: string
+          card_id: string
+          hashtags?: string[]
+          lang: string
+          media_asset_ids?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          domain?: string;
-          title?: string;
-          body?: Json;
-          status?: Database['public']['Enums']['suggestion_status'];
-          client_id?: string | null;
-          card_id?: string | null;
-          created_at?: string;
-          resolved_by?: string | null;
-          resolved_at?: string | null;
-        };
+          caption?: string
+          card_id?: string
+          hashtags?: string[]
+          lang?: string
+          media_asset_ids?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: 'suggestions_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
+            foreignKeyName: "card_contents_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'suggestions_card_id_fkey';
-            columns: ['card_id'];
-            isOneToOne: false;
-            referencedRelation: 'cards';
-            referencedColumns: ['id'];
+            foreignKeyName: "card_contents_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cards: {
+        Row: {
+          assignee: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          due_at: string | null
+          id: string
+          platforms: string[]
+          priority: number
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["card_status"]
+          tags: string[]
+          title: string
+          type: Database["public"]["Enums"]["card_type"]
+          updated_at: string
+        }
+        Insert: {
+          assignee?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          platforms?: string[]
+          priority?: number
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["card_status"]
+          tags?: string[]
+          title: string
+          type?: Database["public"]["Enums"]["card_type"]
+          updated_at?: string
+        }
+        Update: {
+          assignee?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          platforms?: string[]
+          priority?: number
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["card_status"]
+          tags?: string[]
+          title?: string
+          type?: Database["public"]["Enums"]["card_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cards_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'suggestions_resolved_by_fkey';
-            columns: ['resolved_by'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
+            foreignKeyName: "cards_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+          {
+            foreignKeyName: "cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_availability: {
+        Row: {
+          client_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          note: string
+          portal_link_id: string | null
+          starts_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          note?: string
+          portal_link_id?: string | null
+          starts_at: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          note?: string
+          portal_link_id?: string | null
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_availability_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_availability_portal_link_id_fkey"
+            columns: ["portal_link_id"]
+            isOneToOne: false
+            referencedRelation: "portal_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_ideas: {
+        Row: {
+          body: string
+          card_id: string | null
+          client_id: string
+          created_at: string
+          id: string
+          portal_link_id: string | null
+          refined: Json | null
+          status: Database["public"]["Enums"]["idea_status"]
+          title: string
+        }
+        Insert: {
+          body?: string
+          card_id?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          portal_link_id?: string | null
+          refined?: Json | null
+          status?: Database["public"]["Enums"]["idea_status"]
+          title: string
+        }
+        Update: {
+          body?: string
+          card_id?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          portal_link_id?: string | null
+          refined?: Json | null
+          status?: Database["public"]["Enums"]["idea_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_ideas_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_ideas_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_ideas_portal_link_id_fkey"
+            columns: ["portal_link_id"]
+            isOneToOne: false
+            referencedRelation: "portal_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_packages: {
+        Row: {
+          active: boolean
+          client_id: string
+          created_at: string
+          currency: string
+          id: string
+          monthly: Json
+          name: string
+          price: number
+          starts_on: string
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          monthly?: Json
+          name: string
+          price?: number
+          starts_on?: string
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          monthly?: Json
+          name?: string
+          price?: number
+          starts_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_packages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_social_accounts: {
+        Row: {
+          client_id: string
+          created_at: string
+          handle: string
+          id: string
+          platform: string
+          postiz_integration_id: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          handle: string
+          id?: string
+          platform: string
+          postiz_integration_id?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          handle?: string
+          id?: string
+          platform?: string
+          postiz_integration_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_social_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          active: boolean
+          brand_profile: Json
+          colors: Json
+          created_at: string
+          glossary: Json
+          hashtag_bank: string[]
+          id: string
+          industry: string
+          langs: string[]
+          location: Json
+          logo_asset_id: string | null
+          name: string
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          brand_profile?: Json
+          colors?: Json
+          created_at?: string
+          glossary?: Json
+          hashtag_bank?: string[]
+          id?: string
+          industry?: string
+          langs?: string[]
+          location?: Json
+          logo_asset_id?: string | null
+          name: string
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          brand_profile?: Json
+          colors?: Json
+          created_at?: string
+          glossary?: Json
+          hashtag_bank?: string[]
+          id?: string
+          industry?: string
+          langs?: string[]
+          location?: Json
+          logo_asset_id?: string | null
+          name?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_logo_fk"
+            columns: ["logo_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comments: {
+        Row: {
+          asset_id: string | null
+          author: string | null
+          body: string
+          card_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          author?: string | null
+          body: string
+          card_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          asset_id?: string | null
+          author?: string | null
+          body?: string
+          card_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_author_fkey"
+            columns: ["author"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          due_on: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_kind"]
+          note: string
+          paid_on: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          title: string
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_on: string
+          id?: string
+          kind?: Database["public"]["Enums"]["payment_kind"]
+          note?: string
+          paid_on?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          title: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_on?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["payment_kind"]
+          note?: string
+          paid_on?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_links: {
+        Row: {
+          active: boolean
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          token: string
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          token: string
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          telegram_chat_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string
+          id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          telegram_chat_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          telegram_chat_id?: number | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
-          id: string;
-          profile_id: string;
-          endpoint: string;
-          keys: Json;
-          created_at: string;
-        };
+          created_at: string
+          endpoint: string
+          id: string
+          keys: Json
+          profile_id: string
+        }
         Insert: {
-          id?: string;
-          profile_id: string;
-          endpoint: string;
-          keys: Json;
-          created_at?: string;
-        };
+          created_at?: string
+          endpoint: string
+          id?: string
+          keys: Json
+          profile_id: string
+        }
         Update: {
-          id?: string;
-          profile_id?: string;
-          endpoint?: string;
-          keys?: Json;
-          created_at?: string;
-        };
+          created_at?: string
+          endpoint?: string
+          id?: string
+          keys?: Json
+          profile_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: 'push_subscriptions_profile_id_fkey';
-            columns: ['profile_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
+            foreignKeyName: "push_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
-        ];
-      };
-    };
-    Views: Record<string, never>;
+        ]
+      }
+      reports: {
+        Row: {
+          body_md: string
+          client_id: string
+          created_at: string
+          id: string
+          metrics: Json
+          week_start: string
+        }
+        Insert: {
+          body_md?: string
+          client_id: string
+          created_at?: string
+          id?: string
+          metrics?: Json
+          week_start: string
+        }
+        Update: {
+          body_md?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          metrics?: Json
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shoots: {
+        Row: {
+          brief_md: string
+          card_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          crew: string[]
+          ends_at: string
+          id: string
+          location: Json
+          starts_at: string
+          status: Database["public"]["Enums"]["shoot_status"]
+          tasks_opened: boolean
+          title: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          brief_md?: string
+          card_id?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          crew?: string[]
+          ends_at: string
+          id?: string
+          location?: Json
+          starts_at: string
+          status?: Database["public"]["Enums"]["shoot_status"]
+          tasks_opened?: boolean
+          title: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          brief_md?: string
+          card_id?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew?: string[]
+          ends_at?: string
+          id?: string
+          location?: Json
+          starts_at?: string
+          status?: Database["public"]["Enums"]["shoot_status"]
+          tasks_opened?: boolean
+          title?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shoots_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shoots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shoots_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shoots_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_leaves: {
+        Row: {
+          created_at: string
+          ends_on: string
+          id: string
+          note: string
+          profile_id: string
+          starts_on: string
+        }
+        Insert: {
+          created_at?: string
+          ends_on: string
+          id?: string
+          note?: string
+          profile_id: string
+          starts_on: string
+        }
+        Update: {
+          created_at?: string
+          ends_on?: string
+          id?: string
+          note?: string
+          profile_id?: string
+          starts_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_leaves_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suggestions: {
+        Row: {
+          body: Json
+          card_id: string | null
+          client_id: string | null
+          created_at: string
+          domain: string
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["suggestion_status"]
+          title: string
+        }
+        Insert: {
+          body?: Json
+          card_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          domain: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          title: string
+        }
+        Update: {
+          body?: Json
+          card_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          domain?: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggestions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suggestions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suggestions_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_link_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          profile_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          profile_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_link_codes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          active: boolean
+          capacity: number
+          created_at: string
+          id: string
+          name: string
+          plate: string
+        }
+        Insert: {
+          active?: boolean
+          capacity?: number
+          created_at?: string
+          id?: string
+          name: string
+          plate?: string
+        }
+        Update: {
+          active?: boolean
+          capacity?: number
+          created_at?: string
+          id?: string
+          name?: string
+          plate?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
-      my_role: {
-        Args: Record<string, never>;
-        Returns: Database['public']['Enums']['user_role'];
-      };
       claim_ai_jobs: {
-        Args: { batch?: number };
-        Returns: Database['public']['Tables']['ai_jobs']['Row'][];
-      };
-    };
+        Args: { batch?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          kind: Database["public"]["Enums"]["job_kind"]
+          payload: Json
+          result: Json | null
+          run_after: string
+          status: Database["public"]["Enums"]["job_status"]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ai_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+    }
     Enums: {
-      user_role: 'admin' | 'manager' | 'member';
-      card_type: 'post' | 'reel' | 'story' | 'reply' | 'other';
+      ad_status: "planned" | "active" | "done" | "cancelled"
+      approval_decision: "approved" | "rejected"
+      asset_kind: "image" | "video" | "other"
+      asset_source: "upload" | "telegram" | "ai" | "render"
+      automation_mode: "suggest" | "semi" | "full"
       card_status:
-        | 'idea'
-        | 'copy_draft'
-        | 'visual_ready'
-        | 'translated'
-        | 'approved'
-        | 'scheduled'
-        | 'published'
-        | 'archived';
-      asset_kind: 'image' | 'video' | 'other';
-      asset_source: 'upload' | 'telegram' | 'ai' | 'render';
+        | "idea"
+        | "copy_draft"
+        | "visual_ready"
+        | "translated"
+        | "approved"
+        | "scheduled"
+        | "published"
+        | "archived"
+      card_type: "post" | "reel" | "story" | "reply" | "other"
+      idea_status: "new" | "refined" | "accepted" | "rejected"
       job_kind:
-        | 'caption'
-        | 'translate'
-        | 'reply'
-        | 'plan'
-        | 'report'
-        | 'image_variants'
-        | 'bg_remove'
-        | 'render_reel'
-        | 'publish'
-        | 'idea_refine'
-        | 'scenario'
-        | 'poster'
-        | 'compliance';
-      job_status: 'queued' | 'running' | 'done' | 'error';
-      approval_decision: 'approved' | 'rejected';
-      shoot_status: 'planned' | 'confirmed' | 'done' | 'cancelled';
-      idea_status: 'new' | 'refined' | 'accepted' | 'rejected';
-      payment_kind: 'package' | 'extra';
-      payment_status: 'pending' | 'paid' | 'overdue';
-      ad_status: 'planned' | 'active' | 'done' | 'cancelled';
-      automation_mode: 'suggest' | 'semi' | 'full';
-      suggestion_status: 'pending' | 'accepted' | 'dismissed';
-    };
-    CompositeTypes: Record<string, never>;
-  };
+        | "caption"
+        | "translate"
+        | "reply"
+        | "plan"
+        | "report"
+        | "image_variants"
+        | "bg_remove"
+        | "render_reel"
+        | "publish"
+        | "idea_refine"
+        | "scenario"
+        | "poster"
+        | "compliance"
+      job_status: "queued" | "running" | "done" | "error"
+      payment_kind: "package" | "extra"
+      payment_status: "pending" | "paid" | "overdue"
+      shoot_status: "planned" | "confirmed" | "done" | "cancelled"
+      suggestion_status: "pending" | "accepted" | "dismissed"
+      user_role: "admin" | "manager" | "member"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
 
-// Convenience aliases used across the app and worker.
-export type Tables<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Row'];
-export type TablesInsert<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Insert'];
-export type TablesUpdate<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Update'];
-export type Enums<T extends keyof Database['public']['Enums']> =
-  Database['public']['Enums'][T];
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+// Convenience aliases used across the app and worker.
 export type Profile = Tables<'profiles'>;
 export type Client = Tables<'clients'>;
 export type ClientSocialAccount = Tables<'client_social_accounts'>;
@@ -1297,3 +1423,48 @@ export const PLATFORMS = [
   'linkedin',
 ] as const;
 export type Platform = (typeof PLATFORMS)[number];
+
+export const Constants = {
+  public: {
+    Enums: {
+      ad_status: ["planned", "active", "done", "cancelled"],
+      approval_decision: ["approved", "rejected"],
+      asset_kind: ["image", "video", "other"],
+      asset_source: ["upload", "telegram", "ai", "render"],
+      automation_mode: ["suggest", "semi", "full"],
+      card_status: [
+        "idea",
+        "copy_draft",
+        "visual_ready",
+        "translated",
+        "approved",
+        "scheduled",
+        "published",
+        "archived",
+      ],
+      card_type: ["post", "reel", "story", "reply", "other"],
+      idea_status: ["new", "refined", "accepted", "rejected"],
+      job_kind: [
+        "caption",
+        "translate",
+        "reply",
+        "plan",
+        "report",
+        "image_variants",
+        "bg_remove",
+        "render_reel",
+        "publish",
+        "idea_refine",
+        "scenario",
+        "poster",
+        "compliance",
+      ],
+      job_status: ["queued", "running", "done", "error"],
+      payment_kind: ["package", "extra"],
+      payment_status: ["pending", "paid", "overdue"],
+      shoot_status: ["planned", "confirmed", "done", "cancelled"],
+      suggestion_status: ["pending", "accepted", "dismissed"],
+      user_role: ["admin", "manager", "member"],
+    },
+  },
+} as const
