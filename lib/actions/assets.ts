@@ -37,7 +37,13 @@ export async function enqueueReel(
   const supabase = await createSupabaseServer();
   const { error } = await supabase.from('ai_jobs').insert({
     kind: 'render_reel',
-    payload: parsed.data,
+    // snake_case to match handleRenderReel's payload read (every worker
+    // handler reads snake_case card_id/asset_id) — not the zod camelCase.
+    payload: {
+      card_id: parsed.data.cardId,
+      asset_id: parsed.data.assetId,
+      langs: parsed.data.langs,
+    },
     created_by: session.userId,
   });
   if (error) return { ok: false, error: error.message };

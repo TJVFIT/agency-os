@@ -160,9 +160,18 @@ async function dispatch(row: ActivityEntry): Promise<void> {
       break;
     }
     case 'publish.blocked': {
-      // Compliance gate stopped a due card (UPGRADE_SPEC §5).
+      // A due card was stopped before publishing — cause is in detail.reason
+      // ('no_approval') or detail.issues (compliance). Label accurately.
       if (!row.card_id) break;
       const { title } = await cardMeta(row.card_id);
+      const url = `/cards/${row.card_id}`;
+      if (detail.reason === 'no_approval') {
+        await notifyManagersAll(
+          `⚠️ Yayın engellendi: ${title} — onay kaydı yok, kart planlıda takıldı.`,
+          url,
+        );
+        break;
+      }
       const issues = Array.isArray(detail.issues)
         ? (detail.issues as { code?: string }[])
             .map((i) => i.code)
@@ -171,7 +180,7 @@ async function dispatch(row: ActivityEntry): Promise<void> {
         : '';
       await notifyManagersAll(
         `⛔ Uygunluk kontrolü yayını durdurdu: ${title}${issues ? ` (${issues})` : ''}`,
-        `/cards/${row.card_id}`,
+        url,
       );
       break;
     }

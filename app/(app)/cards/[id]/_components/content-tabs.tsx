@@ -123,10 +123,20 @@ export function ContentTabs({
         mediaAssetIds: d.mediaAssetIds,
       });
       if (res.ok) {
-        // Our local draft is now the server truth — drop dirty flags so the
-        // refreshed content (new updated_at) re-syncs cleanly instead of being
-        // treated as an external change to preserve.
-        dirty.current[lang] = {};
+        // Reconcile dirty flags against what we actually saved (`d`): clear a
+        // field only if the live draft still equals the saved value. If the
+        // user kept typing while the save was in flight, that field stays
+        // dirty so the post-refresh re-sync won't clobber the new keystrokes.
+        setDrafts((prev) => {
+          const cur = prev[lang];
+          dirty.current[lang] = {
+            caption: cur.caption !== d.caption,
+            hashtags: cur.hashtags !== d.hashtags,
+            mediaAssetIds:
+              cur.mediaAssetIds.join(',') !== d.mediaAssetIds.join(','),
+          };
+          return prev; // no value change — only dirty-flag reconciliation
+        });
         setSavedLang(lang);
         router.refresh();
       }

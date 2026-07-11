@@ -210,15 +210,14 @@ async function dispatchScheduled(): Promise<void> {
         batched: true, // notified once below, not per-row
       });
       if (fresh) {
+        // Single notification path: the publish.blocked log below is picked
+        // up by notifications.ts (which labels by detail.reason) — matches
+        // the compliance branch, no direct managersAll (avoids a double ping).
         await logActivity('publish.blocked', {
           clientId: card.client_id,
           cardId: card.id,
           detail: { reason: 'no_approval' },
         });
-        await managersAll(
-          `⚠️ Yayın engellendi: ${card.title} — onay kaydı yok, kart planlıda takıldı.`,
-          `/clients/${card.client_id}`,
-        );
         log.warn({ card_id: card.id }, 'publish blocked: no approval record');
       }
       continue;

@@ -20,6 +20,7 @@ export function ApprovalClient({
   >({});
   const [activeLang, setActiveLang] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   if (done) {
@@ -59,9 +60,17 @@ export function ApprovalClient({
             };
           });
     if (payload.length === 0) return;
+    setError(null);
     startTransition(async () => {
       const res = await submitApprovalDecisions({ token, decisions: payload });
-      if (res.ok) setDone(true);
+      if (res.ok) {
+        setDone(true);
+      } else {
+        // Public surface — never fail silently. Tell the client why.
+        setError(
+          res.error === 'expired' ? tr.approval.expired : tr.errors.generic,
+        );
+      }
     });
   }
 
@@ -164,6 +173,12 @@ export function ApprovalClient({
           </article>
         );
       })}
+
+      {error && (
+        <p className="rounded-lg border border-red-900 bg-red-950 px-3 py-2 text-center text-sm text-red-300">
+          {error}
+        </p>
+      )}
 
       <button
         onClick={() => submit()}
