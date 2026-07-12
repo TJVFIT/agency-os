@@ -42,6 +42,9 @@ async function postizCreatePost(
       authorization: env.POSTIZ_API_KEY!,
     },
     body: JSON.stringify({
+      // Direct publish only. TikTok draft/inbox (req 26) is NOT wired — see
+      // UPGRADE_SPEC §5a. Do not add a fake 'draft' branch without confirming
+      // the Postiz TikTok integration actually supports it.
       type: 'now',
       posts: [
         {
