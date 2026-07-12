@@ -139,19 +139,43 @@ export async function handleScenario(job: AiJob) {
     });
 
   if (out.data.needs_shoot) {
-    await db()
+    // Dedupe on card_id so a queue retry after a partial failure (or a second
+    // scenario run) doesn't stack duplicate shoot_needed suggestions, and log
+    // suggestion.created like every other suggestion path (hard rule 2 — the
+    // 0006 trigger only logs suggestion *updates*).
+    const { data: existing } = await db()
       .from('suggestions')
-      .insert({
-        domain: 'post_shoot',
-        title: card.title,
-        body: {
-          kind: 'shoot_needed',
-          card_id: card.id,
+      .select('id')
+      .eq('status', 'pending')
+      .eq('domain', 'post_shoot')
+      .eq('card_id', card.id)
+      .limit(1);
+    if (!existing?.length) {
+      const { data: created } = await db()
+        .from('suggestions')
+        .insert({
+          domain: 'post_shoot',
+          title: card.title,
+          body: {
+            kind: 'shoot_needed',
+            card_id: card.id,
+            client_id: card.client_id,
+          } as Json,
           client_id: card.client_id,
-        } as Json,
-        client_id: card.client_id,
-        card_id: card.id,
-      });
+          card_id: card.id,
+        })
+        .select('id')
+        .single();
+      await logActivity('suggestion.created', {
+        clientId: card.client_id,
+        cardId: card.id,
+        detail: {
+          suggestion_id: created?.id,
+          domain: 'post_shoot',
+          title: card.title,
+        },
+      }).catch(() => {});
+    }
   }
 
   await logActivity('ai.scenario_done', {

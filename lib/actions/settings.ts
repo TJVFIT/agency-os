@@ -104,7 +104,7 @@ const postizSchema = z.object({
 export async function mapPostizIntegration(
   input: z.input<typeof postizSchema>,
 ): Promise<ActionResult> {
-  await requireRole('admin');
+  const session = await requireRole('admin');
   const parsed = postizSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
   const supabase = await createSupabaseServer();
@@ -113,6 +113,26 @@ export async function mapPostizIntegration(
     .update({ postiz_integration_id: parsed.data.integrationId })
     .eq('id', parsed.data.accountId);
   if (error) return { ok: false, error: error.message };
+
+  // No trigger on client_social_accounts — log explicitly (hard rule 2). This
+  // mapping decides where approved content publishes, so it must be auditable.
+  const { data: acct } = await supabase
+    .from('client_social_accounts')
+    .select('client_id')
+    .eq('id', parsed.data.accountId)
+    .single();
+  await createSupabaseAdmin()
+    .from('activity_log')
+    .insert({
+      actor: session.userId,
+      client_id: acct?.client_id ?? null,
+      action: 'client.postiz_mapped',
+      detail: {
+        account_id: parsed.data.accountId,
+        integration_id: parsed.data.integrationId,
+      },
+    });
+
   revalidatePath('/settings');
   return { ok: true };
 }
