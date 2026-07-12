@@ -258,6 +258,8 @@ export const tr = {
   ai: {
     generateCaptions: '3 başlık üret',
     translate: 'Çevir',
+    generatePoster: 'Afiş üret',
+    posterDone: 'Afiş üretildi — karta eklendi (Medya).',
     draftReply: 'Yanıt taslağı',
     replyIncoming: 'Gelen mesaj',
     replyContext: 'Bağlam (opsiyonel)',

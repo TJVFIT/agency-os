@@ -16,7 +16,7 @@ import type {
   TranslateResult,
 } from '@/lib/ai/schemas';
 
-type Kind = 'caption' | 'translate' | 'reply';
+type Kind = 'caption' | 'translate' | 'reply' | 'poster';
 
 // Safety net for a pending AI slot: if no terminal ai_jobs event resolves it
 // within this window, reconcile once more and then fail loud.
@@ -33,6 +33,10 @@ interface TranslateState {
 interface ReplyState {
   status: 'pending' | 'done' | 'error';
   result?: ReplyResult;
+}
+// Poster (afiş) produces an image asset attached to the card, not inline text.
+interface PosterState {
+  status: 'pending' | 'done' | 'error';
 }
 
 /** AI buttons row: 3 caption variants → pick, Translate, Draft reply.
@@ -69,6 +73,7 @@ export function AiActions({
   const [caption, setCaption] = useState<CaptionState | null>(null);
   const [translate, setTranslate] = useState<TranslateState | null>(null);
   const [reply, setReply] = useState<ReplyState | null>(null);
+  const [poster, setPoster] = useState<PosterState | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
 
   const hasEn = langs.includes('en');
@@ -77,6 +82,7 @@ export function AiActions({
     if (kind === 'caption') setCaption({ status: 'error' });
     else if (kind === 'translate') setTranslate({ status: 'error' });
     else if (kind === 'reply') setReply({ status: 'error' });
+    else if (kind === 'poster') setPoster({ status: 'error' });
   }, []);
 
   // Apply a terminal ai_job to its slot. Returns true if the job was terminal
@@ -105,6 +111,8 @@ export function AiActions({
           ? { status: 'error' }
           : { status: 'done', result: job.result as unknown as ReplyResult },
       );
+    } else if (kind === 'poster') {
+      setPoster(failed ? { status: 'error' } : { status: 'done' });
     }
     return true;
   }, []);
@@ -148,6 +156,11 @@ export function AiActions({
       set.clear();
     };
   }, []);
+
+  // A finished poster attaches a new asset to the card — refresh to reveal it.
+  useEffect(() => {
+    if (poster?.status === 'done') router.refresh();
+  }, [poster?.status, router]);
 
   function enqueue(kind: Kind, payload: unknown, reset: () => void) {
     reset();
@@ -193,6 +206,12 @@ export function AiActions({
     if (!incoming.trim()) return;
     enqueue('reply', { card_id: cardId, message: incoming, context }, () =>
       setReply({ status: 'pending' }),
+    );
+  }
+
+  function runPoster() {
+    enqueue('poster', { card_id: cardId, brief }, () =>
+      setPoster({ status: 'pending' }),
     );
   }
 
@@ -248,7 +267,23 @@ export function AiActions({
                 : tr.ai.translate}
             </Button>
           )}
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={pending || poster?.status === 'pending'}
+            onClick={runPoster}
+          >
+            {poster?.status === 'pending'
+              ? tr.ai.pending
+              : tr.ai.generatePoster}
+          </Button>
         </div>
+        {poster?.status === 'error' && (
+          <p className="text-sm text-red-400">{tr.ai.failed}</p>
+        )}
+        {poster?.status === 'done' && (
+          <p className="text-sm text-emerald-400">{tr.ai.posterDone}</p>
+        )}
       </div>
 
       {/* Caption results */}

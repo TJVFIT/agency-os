@@ -17,6 +17,9 @@ const eslintConfig = defineConfig([
     // Workspace extras:
     'supabase/**',
     'coverage/**',
+    // Desktop shell is a separate Tauri/Rust project (its dist is plain HTML
+    // and target/ holds generated build artifacts) — not part of the app lint.
+    'desktop/**',
   ]),
 ]);
 
