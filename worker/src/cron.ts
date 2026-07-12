@@ -456,6 +456,18 @@ async function computeClientMetrics(
     return count ?? 0;
   };
 
+  // Ads summary (req 32 §7 rapor half): counts by status + total spend so the
+  // report LLM can mention advertising activity.
+  const { data: adRows } = await db()
+    .from('ad_tasks')
+    .select('status, budget')
+    .eq('client_id', clientId)
+    .neq('status', 'cancelled');
+  const adList = adRows ?? [];
+  const adSpend = adList
+    .filter((a) => a.status === 'active' || a.status === 'done')
+    .reduce((sum, a) => sum + (Number(a.budget) || 0), 0);
+
   return {
     publishes: { total: (weekPubs ?? []).length, by_platform: byPlatform },
     quota: {
@@ -466,6 +478,12 @@ async function computeClientMetrics(
     payments: {
       pending: await paymentCount('pending'),
       overdue: await paymentCount('overdue'),
+    },
+    ads: {
+      total: adList.length,
+      active: adList.filter((a) => a.status === 'active').length,
+      done: adList.filter((a) => a.status === 'done').length,
+      spend: adSpend,
     },
   };
 }
@@ -632,7 +650,7 @@ async function runMissingWorkDetector(): Promise<void> {
   const now = new Date();
   const { day } = istanbulDay(now);
   const threeDaysAgo = new Date(now.getTime() - 3 * DAY_MS).toISOString();
-  const counts = { stuck: 0, shoots: 0, payments: 0, compliance: 0 };
+  const counts = { stuck: 0, shoots: 0, payments: 0, compliance: 0, ads: 0 };
 
   // 1. Stuck cards: in-flight statuses untouched for 3+ days.
   const { data: stuck } = await db()
@@ -726,11 +744,44 @@ async function runMissingWorkDetector(): Promise<void> {
     if (fresh) counts.compliance += 1;
   }
 
+  // 5. Ads needing attention (req 32 §7 hatırlatma): active past their end date
+  //    (wrap up + enter results) or finished with no results recorded.
+  const { data: adTasks } = await db()
+    .from('ad_tasks')
+    .select('id, objective, client_id, status, ends_on, results')
+    .in('status', ['active', 'done']);
+  for (const ad of adTasks ?? []) {
+    const endedActive =
+      ad.status === 'active' && ad.ends_on !== null && ad.ends_on < day;
+    const doneNoResults =
+      ad.status === 'done' &&
+      (!ad.results ||
+        Object.keys(ad.results as Record<string, unknown>).length === 0);
+    if (!endedActive && !doneNoResults) continue;
+    const reason = endedActive ? 'ad_ended' : 'ad_no_results';
+    const label = ad.objective || ad.id.slice(0, 8);
+    const fresh = await insertSuggestion({
+      domain: 'missing_work',
+      title: endedActive
+        ? `Reklam bitti, güncelle: ${label}`
+        : `Reklam sonucu girilmedi: ${label}`,
+      body: { kind: 'info', reason, ad_id: ad.id },
+      clientId: ad.client_id,
+      dedupeBody: { reason, ad_id: ad.id },
+      batched: true,
+    });
+    if (fresh) counts.ads += 1;
+  }
+
   const total =
-    counts.stuck + counts.shoots + counts.payments + counts.compliance;
+    counts.stuck +
+    counts.shoots +
+    counts.payments +
+    counts.compliance +
+    counts.ads;
   if (total > 0) {
     await managersAll(
-      `🔍 Eksik işler: ${total} yeni bulgu — takılı kart: ${counts.stuck}, çekim görevi: ${counts.shoots}, geciken ödeme: ${counts.payments}, uygunluk: ${counts.compliance}`,
+      `🔍 Eksik işler: ${total} yeni bulgu — takılı kart: ${counts.stuck}, çekim görevi: ${counts.shoots}, geciken ödeme: ${counts.payments}, uygunluk: ${counts.compliance}, reklam: ${counts.ads}`,
     );
   }
   log.info(counts, 'missing work detector done');
