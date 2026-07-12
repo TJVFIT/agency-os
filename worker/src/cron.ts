@@ -280,6 +280,7 @@ async function runPlanner(): Promise<void> {
     .select('id, name')
     .eq('active', true);
   let suggested = 0;
+  let planned = 0;
   for (const client of clients ?? []) {
     const { count } = await db()
       .from('cards')
@@ -296,6 +297,7 @@ async function runPlanner(): Promise<void> {
           kind: 'plan',
           payload: { client_id: client.id, week_start: weekStart },
         });
+      planned += 1;
     } else {
       // Suggest mode: one row per client; accepting it enqueues the plan job.
       const fresh = await insertSuggestion({
@@ -321,7 +323,14 @@ async function runPlanner(): Promise<void> {
       `📋 Haftalık plan önerileri hazır (${suggested} müşteri) — Öneriler kutusundan başlatın.`,
     );
   }
-  log.info({ auto }, 'weekly planner done');
+  // UPGRADE_SPEC §6: managers get the Monday digest in EVERY mode, not only
+  // suggest. In auto (semi/full) the plans are already enqueued — just inform.
+  if (auto && planned > 0) {
+    await managersAll(
+      `📋 Haftalık planlar hazırlanıyor (${planned} müşteri).`,
+    );
+  }
+  log.info({ auto, planned, suggested }, 'weekly planner done');
 }
 
 // ---------- Friday 17:00 reports ----------

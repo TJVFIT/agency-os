@@ -343,6 +343,7 @@ export const tr = {
     suggestSlots: 'Zaman öner',
     route: 'Rota',
     routeTotal: 'Toplam {km} km',
+    routeSkipped: '{n} çekimin konumu yok — rotaya eklenmedi.',
     vehicles: 'Araçlar',
     newVehicle: 'Yeni araç',
     plate: 'Plaka',
