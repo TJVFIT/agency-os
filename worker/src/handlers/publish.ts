@@ -11,12 +11,13 @@
  * detail.manual=true, so the pipeline still saves the team time.
  */
 
-import type { AiJob } from '../../../lib/db/types';
+import type { AiJob, Json } from '../../../lib/db/types';
 import { workerEnv } from '../env';
 import { db, logActivity } from '../supabase';
 import { publicUrl } from '../r2';
 import { notifyManagers } from './../telegram';
 import { log } from '../log';
+import { approvalIsStale, checkCardCompliance } from '../compliance-check';
 
 function postizConfigured(): boolean {
   const env = workerEnv();
@@ -77,18 +78,45 @@ export async function handlePublish(job: AiJob) {
     return { skipped: true, reason: 'not_scheduled' };
   }
 
-  // Re-verify an approval actually exists (SPEC §8) — defense in depth beyond
-  // the status gate. Both manager UI approvals (via the status-guard trigger)
-  // and magic-link approvals leave an activity_log 'card.status_changed → approved'.
-  const { count: approvals } = await db()
-    .from('activity_log')
-    .select('id', { count: 'exact', head: true })
-    .eq('card_id', card_id)
-    .eq('action', 'card.status_changed')
-    .contains('detail', { to: 'approved' });
-  if (!approvals) {
+  // Re-verify approval AND that the approved content is still current
+  // (SPEC §8 + CLAUDE.md rule 1) — the same gates the dispatcher runs, checked
+  // again here so the suggest-mode accept path (which enqueues long after the
+  // dispatcher's check) cannot publish content edited after approval.
+  const { stale, approvedAt } = await approvalIsStale(card_id);
+  if (!approvedAt) {
     log.warn({ card_id }, 'publish skipped: no approval record');
     return { skipped: true, reason: 'no_approval' };
+  }
+  if (stale) {
+    // logActivity('publish.blocked') is picked up by notifications.ts (which
+    // labels by detail.reason) — no direct notify here, to avoid a double ping.
+    await logActivity('publish.blocked', {
+      clientId: card.client_id,
+      cardId: card_id,
+      detail: { reason: 'content_changed_after_approval' },
+    });
+    log.warn({ card_id }, 'publish blocked: content changed after approval');
+    return { skipped: true, reason: 'content_changed_after_approval' };
+  }
+
+  // Compliance re-check (defense in depth) — closes the edit-after-schedule
+  // window the dispatcher-only gate left open.
+  const compliance = await checkCardCompliance(
+    card_id,
+    card.client_id,
+    card.platforms,
+  );
+  if (!compliance.ok) {
+    await logActivity('publish.blocked', {
+      clientId: card.client_id,
+      cardId: card_id,
+      detail: { issues: compliance.issues as unknown as Json },
+    });
+    log.warn(
+      { card_id, issues: compliance.issues },
+      'publish blocked (compliance)',
+    );
+    return { skipped: true, reason: 'compliance' };
   }
 
   // TR content is the v1 publish source.

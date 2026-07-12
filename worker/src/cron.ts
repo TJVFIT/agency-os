@@ -19,9 +19,8 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 
-import { checkCompliance, type ComplianceIssue } from '../../lib/compliance';
-import { parseBrandProfile } from '../../lib/db/domain';
 import type { Json } from '../../lib/db/types';
+import { checkCardCompliance, approvalIsStale } from './compliance-check';
 import { db, logActivity } from './supabase';
 import { notifyManagers, notifyUser } from './telegram';
 import { mayAutoAct } from './automation';
@@ -114,61 +113,27 @@ async function insertSuggestion(opts: {
   return true;
 }
 
-// ---------- compliance gate (UPGRADE_SPEC §5) ----------
-
-/**
- * Run the pure compliance engine over a card's TR content for each of its
- * platforms. `scheduledAt` is passed as null on purpose: due cards are past
- * their scheduled_at by definition — the schedule-sanity check belongs to the
- * scheduling UI, not to the dispatcher/detector. Issues identical across
- * platforms are de-duplicated to keep the payload compact.
- */
-async function checkCardCompliance(
-  cardId: string,
-  clientId: string,
-  platforms: string[],
-): Promise<{ ok: boolean; issues: ComplianceIssue[] }> {
-  const [{ data: client }, { data: content }] = await Promise.all([
-    db().from('clients').select('brand_profile').eq('id', clientId).single(),
-    db()
-      .from('card_contents')
-      .select('caption, hashtags, media_asset_ids')
-      .eq('card_id', cardId)
-      .eq('lang', 'tr')
-      .maybeSingle(),
-  ]);
-  const bannedWords = parseBrandProfile(client?.brand_profile).banned_words;
-
-  const seen = new Set<string>();
-  const issues: ComplianceIssue[] = [];
-  for (const platform of platforms.length ? platforms : ['instagram']) {
-    const result = checkCompliance({
-      caption: content?.caption ?? '',
-      hashtags: content?.hashtags ?? [],
-      mediaCount: content?.media_asset_ids?.length ?? 0,
-      platform,
-      bannedWords,
-      scheduledAt: null,
-      now: new Date(),
-    });
-    for (const issue of result.issues) {
-      const key = `${issue.code}:${issue.detail}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      issues.push(issue);
-    }
-  }
-  return { ok: issues.length === 0, issues };
-}
+// The compliance gate (checkCardCompliance) and approval-freshness gate
+// (approvalIsStale) now live in ./compliance-check so the publish handler can
+// re-run them at send time too (UPGRADE_SPEC §5 / CLAUDE.md rule 1).
 
 // ---------- publish dispatcher (every 60s) ----------
+// Never auto-dispatch a card whose scheduled_at is older than this. A card
+// left 'scheduled' after a terminal publish failure would otherwise be
+// re-selected once retention (60d) deletes its errored ai_job — silently
+// republishing months-old content and double-posting. Stuck scheduled cards
+// past this window are surfaced by the missing-work detector, not auto-sent.
+const STALE_PUBLISH_MS = 14 * DAY_MS;
+
 async function dispatchScheduled(): Promise<void> {
   const now = new Date().toISOString();
+  const staleFloor = new Date(Date.now() - STALE_PUBLISH_MS).toISOString();
   const { data: due } = await db()
     .from('cards')
     .select('id, title, client_id, platforms')
     .eq('status', 'scheduled')
-    .lte('scheduled_at', now);
+    .lte('scheduled_at', now)
+    .gte('scheduled_at', staleFloor);
   if (!due?.length) return;
 
   const autoPublish = await mayAutoAct('publish');
@@ -219,6 +184,33 @@ async function dispatchScheduled(): Promise<void> {
           detail: { reason: 'no_approval' },
         });
         log.warn({ card_id: card.id }, 'publish blocked: no approval record');
+      }
+      continue;
+    }
+
+    // Approval-freshness gate (CLAUDE.md rule 1): block if the card's content
+    // was edited after it was approved — the approved text is no longer what
+    // would publish. Surfaces once as a suggestion + publish.blocked; the
+    // pending row dedupes later ticks.
+    if ((await approvalIsStale(card.id)).stale) {
+      const fresh = await insertSuggestion({
+        domain: 'missing_work',
+        title: `Onay bayat (içerik değişti): ${card.title}`,
+        body: { kind: 'info', reason: 'content_changed_after_approval' },
+        clientId: card.client_id,
+        cardId: card.id,
+        batched: true,
+      });
+      if (fresh) {
+        await logActivity('publish.blocked', {
+          clientId: card.client_id,
+          cardId: card.id,
+          detail: { reason: 'content_changed_after_approval' },
+        });
+        log.warn(
+          { card_id: card.id },
+          'publish blocked: content changed after approval',
+        );
       }
       continue;
     }

@@ -172,6 +172,13 @@ async function dispatch(row: ActivityEntry): Promise<void> {
         );
         break;
       }
+      if (detail.reason === 'content_changed_after_approval') {
+        await notifyManagersAll(
+          `⚠️ Yayın engellendi: ${title} — içerik onaydan sonra değişti, yeniden onay gerekli.`,
+          url,
+        );
+        break;
+      }
       const issues = Array.isArray(detail.issues)
         ? (detail.issues as { code?: string }[])
             .map((i) => i.code)

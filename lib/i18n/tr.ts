@@ -183,6 +183,9 @@ export const tr = {
     workerStatus: 'Worker durumu',
     workerAlive: 'Çalışıyor',
     workerDead: 'Erişilemiyor',
+    publishFailures: 'Başarısız yayınlar',
+    publishFailuresEmpty: 'Başarısız yayın yok.',
+    retryPublish: 'Tekrar dene',
   },
 
   clients: {
