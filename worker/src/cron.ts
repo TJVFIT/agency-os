@@ -590,7 +590,11 @@ async function runDailyPlans(): Promise<void> {
     const myShoots = (shoots ?? []).filter((s) =>
       (s.crew ?? []).includes(profile.id),
     );
-    if (!myCards.length && !myShoots.length) continue;
+    const isManager = profile.role === 'admin' || profile.role === 'manager';
+    // Managers still get the client-coverage summary even with no personal
+    // tasks today (the old guard dropped it for a work-free manager).
+    if (!myCards.length && !myShoots.length && !(isManager && coverage))
+      continue;
 
     const lines = [`📋 Bugünün planı — ${dateLabel}`];
     if (myCards.length) {
