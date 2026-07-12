@@ -20,6 +20,7 @@ import {
 } from '@aws-sdk/client-s3';
 
 import type { Json } from '../../lib/db/types';
+import { QUOTA_TYPES } from '../../lib/quota-types';
 import { checkCardCompliance, approvalIsStale } from './compliance-check';
 import { db, logActivity } from './supabase';
 import { notifyManagers, notifyUser } from './telegram';
@@ -360,33 +361,73 @@ async function computeClientMetrics(
         byPlatform[platform] = (byPlatform[platform] ?? 0) + 1;
   }
 
-  // Quota usage: published cards this month by type vs the active package.
-  const monthStart = fromZonedTime(
-    `${formatInTimeZone(new Date(), TZ, 'yyyy-MM')}-01T00:00:00`,
-    TZ,
-  );
+  // Quota usage — mirror lib/finance.ts monthlyUsage exactly so /finance and
+  // this report agree (the v2 audit found they diverged). Rules: publish.success
+  // logs (primary) + published cards by scheduled_at (fallback), deduped per
+  // card, filtered to QUOTA_TYPES; plus shoots done this month as 'shoot' usage.
+  const ym = formatInTimeZone(new Date(), TZ, 'yyyy-MM');
+  const monthStart = fromZonedTime(`${ym}-01T00:00:00`, TZ);
+  const [yy, mm] = ym.split('-').map(Number);
+  const nextYm =
+    mm === 12 ? `${yy + 1}-01` : `${yy}-${String(mm + 1).padStart(2, '0')}`;
+  const monthEnd = fromZonedTime(`${nextYm}-01T00:00:00`, TZ);
+  const monthStartIso = monthStart.toISOString();
+  const monthEndIso = monthEnd.toISOString();
+
+  const usedByType: Record<string, number> = {};
+  const countedCards = new Set<string>();
+  const bumpType = (type: string) => {
+    if (!(QUOTA_TYPES as readonly string[]).includes(type)) return;
+    usedByType[type] = (usedByType[type] ?? 0) + 1;
+  };
+
   const { data: monthPubs } = await db()
     .from('activity_log')
     .select('card_id')
     .eq('client_id', clientId)
     .eq('action', 'publish.success')
-    .gte('created_at', monthStart.toISOString());
-  const monthCardIds = [
+    .gte('created_at', monthStartIso)
+    .lt('created_at', monthEndIso);
+  const pubCardIds = [
     ...new Set(
       (monthPubs ?? [])
         .map((p) => p.card_id)
         .filter((id): id is string => !!id),
     ),
   ];
-  const usedByType: Record<string, number> = {};
-  if (monthCardIds.length) {
+  if (pubCardIds.length) {
     const { data: cards } = await db()
       .from('cards')
       .select('id, type')
-      .in('id', monthCardIds);
-    for (const card of cards ?? [])
-      usedByType[card.type] = (usedByType[card.type] ?? 0) + 1;
+      .in('id', pubCardIds);
+    for (const card of cards ?? []) {
+      if (countedCards.has(card.id)) continue;
+      countedCards.add(card.id);
+      bumpType(card.type);
+    }
   }
+  // Fallback: cards flipped to published without a publish.success log.
+  const { data: publishedCards } = await db()
+    .from('cards')
+    .select('id, type')
+    .eq('client_id', clientId)
+    .eq('status', 'published')
+    .gte('scheduled_at', monthStartIso)
+    .lt('scheduled_at', monthEndIso);
+  for (const card of publishedCards ?? []) {
+    if (countedCards.has(card.id)) continue;
+    countedCards.add(card.id);
+    bumpType(card.type);
+  }
+  // Shoots done this month → 'shoot' usage (absent from the old report path).
+  const { count: shootsDone } = await db()
+    .from('shoots')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', clientId)
+    .eq('status', 'done')
+    .gte('starts_at', monthStartIso)
+    .lt('starts_at', monthEndIso);
+  if (shootsDone) usedByType['shoot'] = shootsDone;
   const { data: packages } = await db()
     .from('client_packages')
     .select('name, monthly')
