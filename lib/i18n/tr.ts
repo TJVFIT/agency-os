@@ -325,6 +325,10 @@ export const tr = {
     location: 'Konum',
     district: 'Semt',
     address: 'Adres',
+    lat: 'Enlem',
+    lng: 'Boylam',
+    locationHint:
+      'Rota planlaması için koordinat girin (Google Haritalar’dan kopyalayın, örn. 39.92 / 32.85).',
     block: 'Zaman bloğu',
     defaultBlock: 'Varsayılan blok: 3 saat 30 dk',
     statuses: {

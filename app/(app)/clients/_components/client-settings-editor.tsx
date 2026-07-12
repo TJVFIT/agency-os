@@ -12,6 +12,12 @@ import { SaveIndicator, type SaveState } from './save-state';
 const LANGS = ['tr', 'en'] as const;
 type Lang = (typeof LANGS)[number];
 
+type ClientLocation = {
+  lat?: number;
+  lng?: number;
+  district?: string;
+} | null;
+
 export function ClientSettingsEditor({
   clientId,
   name: initialName,
@@ -19,6 +25,7 @@ export function ClientSettingsEditor({
   langs: initialLangs,
   active: initialActive,
   colors: initialColors,
+  location: initialLocation,
 }: {
   clientId: string;
   name: string;
@@ -26,6 +33,7 @@ export function ClientSettingsEditor({
   langs: string[];
   active: boolean;
   colors: ClientColors;
+  location: ClientLocation;
 }) {
   const [name, setName] = useState(initialName);
   const [industry, setIndustry] = useState(initialIndustry);
@@ -37,6 +45,13 @@ export function ClientSettingsEditor({
   const [secondary, setSecondary] = useState(
     initialColors.secondary ?? '#000000',
   );
+  const [lat, setLat] = useState(
+    typeof initialLocation?.lat === 'number' ? String(initialLocation.lat) : '',
+  );
+  const [lng, setLng] = useState(
+    typeof initialLocation?.lng === 'number' ? String(initialLocation.lng) : '',
+  );
+  const [district, setDistrict] = useState(initialLocation?.district ?? '');
   const [state, setState] = useState<SaveState>('idle');
   const [pending, startTransition] = useTransition();
 
@@ -52,6 +67,13 @@ export function ClientSettingsEditor({
 
   function save() {
     setState('saving');
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    const hasCoords =
+      lat.trim() !== '' &&
+      lng.trim() !== '' &&
+      !Number.isNaN(latNum) &&
+      !Number.isNaN(lngNum);
     startTransition(async () => {
       const res = await updateClientAction({
         clientId,
@@ -60,6 +82,13 @@ export function ClientSettingsEditor({
         langs: langs.length ? langs : ['tr'],
         active,
         colors: { primary, secondary },
+        location: hasCoords
+          ? {
+              lat: latNum,
+              lng: lngNum,
+              ...(district.trim() && { district: district.trim() }),
+            }
+          : null,
       });
       setState(res.ok ? 'saved' : 'error');
     });
@@ -157,6 +186,42 @@ export function ClientSettingsEditor({
               />
             </div>
           </div>
+        </div>
+
+        <div>
+          <span className="mb-1 block text-xs font-medium text-neutral-400">
+            {tr.production.location}
+          </span>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label={tr.production.lat}>
+              <Input
+                value={lat}
+                onChange={(e) => setLat(e.target.value)}
+                inputMode="decimal"
+                placeholder="39.92"
+                className="font-mono"
+              />
+            </Field>
+            <Field label={tr.production.lng}>
+              <Input
+                value={lng}
+                onChange={(e) => setLng(e.target.value)}
+                inputMode="decimal"
+                placeholder="32.85"
+                className="font-mono"
+              />
+            </Field>
+            <Field label={tr.production.district}>
+              <Input
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                maxLength={120}
+              />
+            </Field>
+          </div>
+          <p className="mt-1 text-[11px] text-neutral-500">
+            {tr.production.locationHint}
+          </p>
         </div>
 
         <label className="flex items-center gap-2">

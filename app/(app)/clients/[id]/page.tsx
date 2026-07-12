@@ -84,6 +84,13 @@ export default async function ClientDetailPage({
           langs={client.langs}
           active={client.active}
           colors={colors}
+          location={
+            (client.location ?? null) as {
+              lat?: number;
+              lng?: number;
+              district?: string;
+            } | null
+          }
         />
 
         <BrandProfileEditor clientId={client.id} initial={brandProfile} />
