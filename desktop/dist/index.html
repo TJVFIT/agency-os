@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agency OS</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0a0a0b;
+        color: #e5e5e5;
+        font-family: system-ui, -apple-system, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .box {
+        text-align: center;
+      }
+      .spin {
+        width: 28px;
+        height: 28px;
+        border: 3px solid #333;
+        border-top-color: #818cf8;
+        border-radius: 50%;
+        animation: s 0.8s linear infinite;
+        margin: 0 auto 14px;
+      }
+      @keyframes s {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      a {
+        color: #818cf8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <div class="spin"></div>
+      <div>Agency OS yükleniyor…</div>
+      <noscript>
+        JavaScript gerekli. <a href="http://localhost:3000">Aç</a>
+      </noscript>
+    </div>
+    <script>
+      // ⚙️ EDIT THIS to your deployed Agency OS URL (see desktop/README.md).
+      // The desktop app is a thin native window around the web app — Agency OS
+      // is a Next.js server app, so it must point at a running instance.
+      var APP_URL = 'http://localhost:3000';
+      window.location.replace(APP_URL);
+    </script>
+  </body>
+</html>
