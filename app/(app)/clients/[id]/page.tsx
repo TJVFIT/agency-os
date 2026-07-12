@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { PageHeader } from '@/components/ui';
+import { PageHeader, Panel } from '@/components/ui';
 import { getSessionProfile } from '@/lib/auth';
 import { getClient } from '@/lib/db/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -9,8 +9,23 @@ import {
   parseGlossary,
   type ClientColors,
 } from '@/lib/db/domain';
+import {
+  compareQuota,
+  emptyUsage,
+  monthlyUsage,
+  QUOTA_TYPES,
+} from '@/lib/finance';
 import type { Report } from '@/lib/db/types';
 import { tr } from '@/lib/i18n/tr';
+
+import { QuotaBars } from '../../finance/_components/quota-bars';
+
+const QUOTA_LABELS: Record<(typeof QUOTA_TYPES)[number], string> = {
+  post: tr.cardTypes.post,
+  reel: tr.cardTypes.reel,
+  story: tr.cardTypes.story,
+  shoot: tr.production.shoots,
+};
 
 import { BrandProfileEditor } from '../_components/brand-profile-editor';
 import { GlossaryEditor } from '../_components/glossary-editor';
@@ -52,12 +67,28 @@ export default async function ClientDetailPage({
 
   // Reports history — server-side read (allowed here per module brief).
   const supabase = await createSupabaseServer();
-  const { data: reportRows } = await supabase
-    .from('reports')
-    .select('*')
-    .eq('client_id', id)
-    .order('week_start', { ascending: false });
+  const [{ data: reportRows }, { data: pkgRow }, usage] = await Promise.all([
+    supabase
+      .from('reports')
+      .select('*')
+      .eq('client_id', id)
+      .order('week_start', { ascending: false }),
+    // Active package for this client → kota bars (UPGRADE_SPEC §7 wants them on
+    // the client page too, not only /finance).
+    supabase
+      .from('client_packages')
+      .select('*')
+      .eq('client_id', id)
+      .eq('active', true)
+      .order('starts_on', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    monthlyUsage(),
+  ]);
   const reports = (reportRows ?? []) as Report[];
+  const quotaCmp = pkgRow
+    ? compareQuota(pkgRow.monthly, usage[id] ?? emptyUsage())
+    : null;
 
   const brandProfile = parseBrandProfile(client.brand_profile);
   const glossary = parseGlossary(client.glossary);
@@ -92,6 +123,18 @@ export default async function ClientDetailPage({
             } | null
           }
         />
+
+        {quotaCmp && pkgRow && (
+          <Panel title={`${tr.finance.quotaUsage} · ${pkgRow.name}`}>
+            <QuotaBars
+              items={QUOTA_TYPES.map((t) => ({
+                key: t,
+                label: QUOTA_LABELS[t],
+                ...quotaCmp[t],
+              }))}
+            />
+          </Panel>
+        )}
 
         <BrandProfileEditor clientId={client.id} initial={brandProfile} />
 
