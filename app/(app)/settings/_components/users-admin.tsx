@@ -23,12 +23,16 @@ export function UsersAdmin({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[26rem] text-sm">
           <thead>
-            <tr className="border-b border-neutral-800 text-left text-xs text-neutral-500">
-              <th className="py-2 pr-4 font-medium">{tr.settings.fullName}</th>
-              <th className="py-2 font-medium">{tr.settings.role}</th>
+            <tr className="border-b border-white/[0.08] text-left">
+              <th className="py-2 pr-4 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+                {tr.settings.fullName}
+              </th>
+              <th className="py-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+                {tr.settings.role}
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="stagger-children">
             {profiles.map((p) => (
               <UserRow key={p.id} profile={p} isSelf={p.id === currentUserId} />
             ))}
@@ -62,10 +66,14 @@ function UserRow({ profile, isSelf }: { profile: Profile; isSelf: boolean }) {
   }
 
   return (
-    <tr className="border-b border-neutral-900">
+    <tr className="border-b border-white/[0.05] transition-colors duration-300 last:border-b-0 hover:bg-white/[0.02]">
       <td className="py-2 pr-4 text-neutral-200">
         {profile.full_name || profile.id.slice(0, 8)}
-        {isSelf && <span className="ml-2 text-xs text-neutral-500">(siz)</span>}
+        {isSelf && (
+          <span className="ml-2 rounded-full border border-white/[0.06] bg-white/[0.04] px-1.5 py-px text-[10px] text-neutral-500">
+            (siz)
+          </span>
+        )}
       </td>
       <td className="py-2">
         <div className="flex items-center gap-2">

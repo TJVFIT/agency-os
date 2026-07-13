@@ -2,11 +2,17 @@
 
 import { useState, useTransition } from 'react';
 
+import { Button, Textarea } from '@/components/ui';
 import { tr } from '@/lib/i18n/tr';
 import type { ApprovalView } from '@/lib/approvals/service';
 import { submitApprovalDecisions } from './actions';
 
 type Decision = 'approved' | 'rejected';
+
+/** Extra vertical padding on top of the Button primitive's default sizing —
+ *  this page is opened from a phone to approve a week of content, so every
+ *  decision button gets a big, thumb-reachable tap target. */
+const TAP_TARGET = '!py-3.5';
 
 export function ApprovalClient({
   token,
@@ -25,17 +31,26 @@ export function ApprovalClient({
 
   if (done) {
     return (
-      <p className="mt-16 rounded-lg border border-emerald-900 bg-emerald-950 p-4 text-center text-sm text-emerald-200">
-        {tr.approval.thanks}
-      </p>
+      <div className="animate-enter flex flex-col items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-10 text-center">
+        <span
+          aria-hidden
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-400/15 text-lg text-emerald-200"
+        >
+          ✓
+        </span>
+        <p className="text-sm text-emerald-200">{tr.approval.thanks}</p>
+      </div>
     );
   }
 
   if (view.cards.length === 0) {
     return (
-      <p className="mt-16 text-center text-sm text-neutral-400">
-        {tr.approval.nothingPending}
-      </p>
+      <div className="animate-enter flex flex-col items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] px-4 py-12 text-center">
+        <span aria-hidden className="text-3xl">
+          🎉
+        </span>
+        <p className="text-sm text-neutral-400">{tr.approval.nothingPending}</p>
+      </div>
     );
   }
 
@@ -76,117 +91,119 @@ export function ApprovalClient({
 
   return (
     <div className="space-y-4">
-      <button
+      <Button
+        variant="primary"
+        className={`w-full ${TAP_TARGET}`}
         onClick={() => submit('approved')}
         disabled={pending}
-        className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
       >
         {tr.approval.approveAll}
-      </button>
+      </Button>
 
-      {view.cards.map((card) => {
-        const langs = Object.keys(card.contents);
-        const lang = activeLang[card.id] ?? langs[0] ?? 'tr';
-        const content = card.contents[lang];
-        const chosen = decisions[card.id];
-        return (
-          <article
-            key={card.id}
-            className="rounded-xl border border-neutral-800 bg-neutral-900"
-          >
-            {content?.media?.[0] && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={content.media[0]}
-                alt={card.title}
-                className="aspect-[4/5] w-full rounded-t-xl object-cover"
-              />
-            )}
-            <div className="p-3">
-              <h2 className="mb-1 text-sm font-medium text-neutral-100">
-                {card.title}
-              </h2>
-              {langs.length > 1 && (
-                <div className="mb-2 flex gap-1">
-                  {langs.map((l) => (
-                    <button
-                      key={l}
-                      onClick={() =>
-                        setActiveLang((p) => ({ ...p, [card.id]: l }))
-                      }
-                      className={`rounded px-2 py-0.5 text-xs uppercase ${
-                        l === lang
-                          ? 'bg-neutral-700 text-neutral-100'
-                          : 'text-neutral-500'
-                      }`}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <p className="whitespace-pre-wrap text-sm text-neutral-300">
-                {content?.caption}
-              </p>
-              {content?.hashtags?.length ? (
-                <p className="mt-1 text-xs text-sky-400">
-                  {content.hashtags
-                    .map((h) => (h.startsWith('#') ? h : `#${h}`))
-                    .join(' ')}
-                </p>
-              ) : null}
-
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => setDecision(card.id, 'approved')}
-                  className={`flex-1 rounded-lg py-2 text-sm font-medium ${
-                    chosen?.decision === 'approved'
-                      ? 'bg-emerald-600 text-white'
-                      : 'border border-neutral-700 text-neutral-300'
-                  }`}
-                >
-                  ✓ {tr.approval.approveOne}
-                </button>
-                <button
-                  onClick={() => setDecision(card.id, 'rejected')}
-                  className={`flex-1 rounded-lg py-2 text-sm font-medium ${
-                    chosen?.decision === 'rejected'
-                      ? 'bg-red-600 text-white'
-                      : 'border border-neutral-700 text-neutral-300'
-                  }`}
-                >
-                  ✗ {tr.approval.rejectOne}
-                </button>
-              </div>
-              {chosen?.decision === 'rejected' && (
-                <textarea
-                  placeholder={tr.approval.rejectCommentPlaceholder}
-                  value={chosen.comment}
-                  onChange={(e) =>
-                    setDecision(card.id, 'rejected', e.target.value)
-                  }
-                  className="mt-2 w-full rounded-md border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100"
-                  rows={2}
+      <div className="stagger-children space-y-3">
+        {view.cards.map((card) => {
+          const langs = Object.keys(card.contents);
+          const lang = activeLang[card.id] ?? langs[0] ?? 'tr';
+          const content = card.contents[lang];
+          const chosen = decisions[card.id];
+          return (
+            <article
+              key={card.id}
+              className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+            >
+              {content?.media?.[0] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={content.media[0]}
+                  alt={card.title}
+                  className="aspect-[4/5] w-full object-cover"
                 />
               )}
-            </div>
-          </article>
-        );
-      })}
+              <div className="p-3.5">
+                <h2 className="mb-1.5 text-sm font-semibold tracking-tight text-neutral-100">
+                  {card.title}
+                </h2>
+                {langs.length > 1 && (
+                  <div className="mb-2.5 flex gap-1.5">
+                    {langs.map((l) => (
+                      <button
+                        key={l}
+                        onClick={() =>
+                          setActiveLang((p) => ({ ...p, [card.id]: l }))
+                        }
+                        className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide transition-colors duration-200 ${
+                          l === lang
+                            ? 'border-white/20 bg-white/[0.1] text-neutral-100'
+                            : 'border-white/[0.06] text-neutral-500 hover:text-neutral-300'
+                        }`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-300">
+                  {content?.caption}
+                </p>
+                {content?.hashtags?.length ? (
+                  <p className="mt-1.5 text-xs text-sky-400">
+                    {content.hashtags
+                      .map((h) => (h.startsWith('#') ? h : `#${h}`))
+                      .join(' ')}
+                  </p>
+                ) : null}
+
+                <div className="mt-3.5 flex gap-2">
+                  <Button
+                    variant={
+                      chosen?.decision === 'approved' ? 'primary' : 'secondary'
+                    }
+                    className={`flex-1 ${TAP_TARGET}`}
+                    onClick={() => setDecision(card.id, 'approved')}
+                  >
+                    ✓ {tr.approval.approveOne}
+                  </Button>
+                  <Button
+                    variant={
+                      chosen?.decision === 'rejected' ? 'danger' : 'secondary'
+                    }
+                    className={`flex-1 ${TAP_TARGET}`}
+                    onClick={() => setDecision(card.id, 'rejected')}
+                  >
+                    ✗ {tr.approval.rejectOne}
+                  </Button>
+                </div>
+                {chosen?.decision === 'rejected' && (
+                  <Textarea
+                    placeholder={tr.approval.rejectCommentPlaceholder}
+                    value={chosen.comment}
+                    onChange={(e) =>
+                      setDecision(card.id, 'rejected', e.target.value)
+                    }
+                    className="mt-2.5"
+                    rows={2}
+                  />
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
 
       {error && (
-        <p className="rounded-lg border border-red-900 bg-red-950 px-3 py-2 text-center text-sm text-red-300">
+        <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-center text-sm text-red-300">
           {error}
         </p>
       )}
 
-      <button
+      <Button
+        variant="primary"
+        className={`w-full ${TAP_TARGET}`}
         onClick={() => submit()}
         disabled={pending || Object.keys(decisions).length === 0}
-        className="w-full rounded-lg bg-neutral-100 py-2.5 text-sm font-semibold text-neutral-950 disabled:opacity-40"
       >
         {pending ? tr.common.loading : tr.common.confirm}
-      </button>
+      </Button>
     </div>
   );
 }

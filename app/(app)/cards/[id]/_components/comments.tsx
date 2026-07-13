@@ -30,6 +30,13 @@ export function Comments({
     return tr.feed.system;
   }
 
+  /** Up to two initials for the avatar chip — presentational only. */
+  function initials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
+
   function submit() {
     const text = body.trim();
     if (!text) return;
@@ -47,26 +54,34 @@ export function Comments({
 
   return (
     <Panel title={tr.card.comments}>
-      <ul className="space-y-3">
+      <ul className="divide-y divide-white/[0.06]">
         {comments.length === 0 && (
           <li className="text-sm text-neutral-500">{tr.card.noComments}</li>
         )}
-        {comments.map((c) => (
-          <li key={c.id} className="text-sm">
-            <div className="mb-0.5 flex items-baseline gap-2">
-              <span className="font-medium text-neutral-200">
-                {authorName(c)}
+        {comments.map((c) => {
+          const name = authorName(c);
+          return (
+            <li key={c.id} className="flex gap-2.5 py-3 text-sm first:pt-0">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[10px] font-semibold text-neutral-300">
+                {initials(name)}
               </span>
-              <span className="text-xs text-neutral-600">
-                {fmtIstanbul(c.created_at)}
-              </span>
-            </div>
-            <p className="whitespace-pre-wrap text-neutral-300">{c.body}</p>
-          </li>
-        ))}
+              <div className="min-w-0 flex-1">
+                <div className="mb-0.5 flex items-baseline gap-2">
+                  <span className="font-medium text-neutral-200">{name}</span>
+                  <span className="text-xs text-neutral-600">
+                    {fmtIstanbul(c.created_at)}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-neutral-300">
+                  {c.body}
+                </p>
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
-      <div className="mt-4 space-y-2 border-t border-neutral-800 pt-4">
+      <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-4">
         <Textarea
           rows={2}
           value={body}

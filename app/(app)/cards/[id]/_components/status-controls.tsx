@@ -104,7 +104,7 @@ export function StatusControls({
 
   return (
     <Panel title={tr.card.status}>
-      <div className="mb-3">
+      <div className="mb-4 border-b border-white/[0.06] pb-4">
         <StatusBadge status={status} />
       </div>
 
@@ -114,6 +114,7 @@ export function StatusControls({
             key={to}
             type="button"
             variant={to === 'approved' ? 'primary' : 'secondary'}
+            icon={to === 'approved' ? '✓' : undefined}
             disabled={pending}
             className="w-full"
             onClick={() => run(to)}
@@ -164,11 +165,13 @@ export function StatusControls({
           !canSchedule &&
           !rejectTarget &&
           !canArchive && (
-            <p className="text-xs text-neutral-600">{tr.common.none}</p>
+            <p className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
+              {tr.common.none}
+            </p>
           )}
       </div>
 
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
 
       <ScheduleDialog
         open={scheduleOpen}

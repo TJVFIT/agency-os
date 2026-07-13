@@ -4,7 +4,22 @@ import { tr } from '@/lib/i18n/tr';
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-/** Small inline indicator reused by every editor's save button row. */
+const CONFIG: Record<
+  Exclude<SaveState, 'idle'>,
+  { dot: string; text: string }
+> = {
+  saving: { dot: 'animate-pulse bg-neutral-500', text: 'text-neutral-500' },
+  saved: {
+    dot: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]',
+    text: 'text-emerald-300',
+  },
+  error: {
+    dot: 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]',
+    text: 'text-red-300',
+  },
+};
+
+/** Subtle dot + label indicator reused by every editor's save button row. */
 export function SaveIndicator({
   state,
   errorText,
@@ -12,17 +27,21 @@ export function SaveIndicator({
   state: SaveState;
   errorText?: string;
 }) {
-  if (state === 'saving')
-    return (
-      <span className="text-xs text-neutral-500">{tr.common.loading}</span>
-    );
-  if (state === 'saved')
-    return <span className="text-xs text-emerald-400">{tr.common.saved}</span>;
-  if (state === 'error')
-    return (
-      <span className="text-xs text-red-400">
-        {errorText ?? tr.common.error}
-      </span>
-    );
-  return null;
+  if (state === 'idle') return null;
+  const { dot, text } = CONFIG[state];
+  const label =
+    state === 'saving'
+      ? tr.common.loading
+      : state === 'saved'
+        ? tr.common.saved
+        : (errorText ?? tr.common.error);
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-[11px] font-medium transition-colors duration-300 ${text}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
 }

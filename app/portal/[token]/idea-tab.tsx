@@ -2,16 +2,17 @@
 
 import { useState, useTransition } from 'react';
 
+import { Button, Field, Input, Textarea } from '@/components/ui';
 import { tr } from '@/lib/i18n/tr';
 import { fmtIstanbulDate } from '@/lib/dates';
 import type { PortalIdea } from '@/lib/portal/service';
 import { submitPortalIdea } from './actions';
 
 const STATUS_CHIP: Record<PortalIdea['status'], string> = {
-  new: 'bg-neutral-800 text-neutral-300',
-  refined: 'bg-sky-950 text-sky-300',
-  accepted: 'bg-emerald-950 text-emerald-300',
-  rejected: 'bg-red-950 text-red-300',
+  new: 'border-white/10 bg-white/[0.05] text-neutral-300',
+  refined: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
+  accepted: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+  rejected: 'border-red-400/20 bg-red-400/10 text-red-200',
 };
 
 /** Fikir gönder tab — title+body form + the client's recent ideas. */
@@ -49,65 +50,77 @@ export function IdeaTab({
 
   return (
     <div className="space-y-4">
-      {sent ? (
-        <p className="rounded-lg border border-emerald-900 bg-emerald-950 p-4 text-center text-sm text-emerald-200">
+      {sent && (
+        <p className="animate-enter rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center text-sm text-emerald-200">
           {tr.portal.ideaSent}
         </p>
-      ) : (
-        <div className="space-y-2 rounded-xl border border-neutral-800 bg-neutral-900 p-3">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={tr.portal.ideaTitle}
-            maxLength={200}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-400"
-          />
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder={tr.portal.ideaBody}
-            maxLength={2000}
-            rows={4}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-400"
-          />
-          <button
-            onClick={submit}
-            disabled={pending || !title.trim() || !body.trim()}
-            className="w-full rounded-lg bg-neutral-100 py-2.5 text-sm font-semibold text-neutral-950 disabled:opacity-40"
-          >
-            {pending ? tr.common.loading : tr.portal.tabs.ideas}
-          </button>
-          {error && (
-            <p className="text-center text-xs text-red-400">
-              {tr.common.error}
-            </p>
-          )}
-        </div>
       )}
 
+      <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <Field label={tr.portal.ideaTitle}>
+          <Input
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setSent(false);
+            }}
+            maxLength={200}
+          />
+        </Field>
+        <Field label={tr.portal.ideaBody}>
+          <Textarea
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              setSent(false);
+            }}
+            maxLength={2000}
+            rows={4}
+          />
+        </Field>
+        <Button
+          variant="primary"
+          className="w-full !py-3.5"
+          disabled={pending || !title.trim() || !body.trim()}
+          onClick={submit}
+        >
+          {pending ? tr.common.loading : tr.portal.tabs.ideas}
+        </Button>
+        {error && (
+          <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-center text-xs text-red-300">
+            {tr.common.error}
+          </p>
+        )}
+      </div>
+
       {ideas.length > 0 && (
-        <ul className="space-y-2">
-          {ideas.map((idea) => (
-            <li
-              key={idea.id}
-              className="flex items-center justify-between gap-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm text-neutral-200">
-                  {idea.title}
-                </p>
-                <p className="text-[11px] text-neutral-500">
-                  {fmtIstanbulDate(idea.createdAt)}
-                </p>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${STATUS_CHIP[idea.status]}`}
+        <section>
+          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+            {tr.portal.ideasInbox}
+          </h3>
+          <ul className="stagger-children space-y-2">
+            {ideas.map((idea) => (
+              <li
+                key={idea.id}
+                className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
               >
-                {tr.portal.ideaStatuses[idea.status]}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-neutral-100">
+                    {idea.title}
+                  </p>
+                  <p className="text-[11px] text-neutral-500">
+                    {fmtIstanbulDate(idea.createdAt)}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_CHIP[idea.status]}`}
+                >
+                  {tr.portal.ideaStatuses[idea.status]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

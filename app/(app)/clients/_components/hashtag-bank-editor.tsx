@@ -58,7 +58,7 @@ export function HashtagBankEditor({
             {tags.map((t) => (
               <li
                 key={t}
-                className="flex items-center gap-1 rounded-full border border-neutral-700 bg-neutral-950 px-2 py-0.5 text-xs text-sky-300"
+                className="flex items-center gap-1 rounded-full border border-sky-400/20 bg-sky-400/10 px-2 py-0.5 text-xs text-sky-200"
               >
                 <span>#{t}</span>
                 <button

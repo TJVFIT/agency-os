@@ -10,7 +10,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Button, Panel, Select } from '@/components/ui';
+import { Button, Field, Panel, Select } from '@/components/ui';
 import { useRealtimeEvent } from '@/components/realtime-provider';
 import { deleteAsset, enqueueBgRemove } from '@/lib/actions/assets';
 import { parseAssetVariants } from '@/lib/db/domain';
@@ -63,10 +63,7 @@ export function AssetsGrid({
   return (
     <Panel>
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
-            {tr.card.client}
-          </span>
+        <Field label={tr.card.client}>
           <Select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
@@ -78,12 +75,9 @@ export function AssetsGrid({
               </option>
             ))}
           </Select>
-        </label>
+        </Field>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
-            {tr.assets.filterKind}
-          </span>
+        <Field label={tr.assets.filterKind}>
           <Select value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="">{tr.common.all}</option>
             {KINDS.map((k) => (
@@ -92,12 +86,9 @@ export function AssetsGrid({
               </option>
             ))}
           </Select>
-        </label>
+        </Field>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
-            {tr.assets.filterSource}
-          </span>
+        <Field label={tr.assets.filterSource}>
           <Select value={source} onChange={(e) => setSource(e.target.value)}>
             <option value="">{tr.common.all}</option>
             {SOURCES.map((s) => (
@@ -106,15 +97,21 @@ export function AssetsGrid({
               </option>
             ))}
           </Select>
-        </label>
+        </Field>
       </div>
 
       {filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-neutral-500">
-          {tr.assets.empty}
-        </p>
+        <div className="animate-enter flex flex-col items-center gap-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-12 text-center">
+          <span
+            aria-hidden
+            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          >
+            🖼️
+          </span>
+          <p className="text-sm text-neutral-500">{tr.assets.empty}</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="stagger-children grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filtered.map((asset) => (
             <AssetCard
               key={asset.id}
@@ -168,14 +165,14 @@ function AssetCard({
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
-      <div className="relative flex aspect-square items-center justify-center bg-neutral-900">
+    <div className="group flex flex-col overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.06] hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.7)]">
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-white/[0.02]">
         {thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumbUrl}
             alt={asset.original_name || asset.id}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-[1.04]"
           />
         ) : (
           <span className="px-2 text-center text-[11px] text-neutral-500">
@@ -190,7 +187,7 @@ function AssetCard({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 p-2">
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5">
         <p
           className="truncate text-xs text-neutral-300"
           title={asset.original_name || undefined}
@@ -207,7 +204,7 @@ function AssetCard({
           {asset.kind === 'image' && (
             <Button
               variant="secondary"
-              className="px-2 py-1 text-xs"
+              className="px-2.5 py-1 text-xs"
               onClick={onBgRemove}
               disabled={pending}
             >
@@ -217,7 +214,7 @@ function AssetCard({
           {isAdmin && (
             <Button
               variant="danger"
-              className="px-2 py-1 text-xs"
+              className="px-2.5 py-1 text-xs"
               onClick={onDelete}
               disabled={pending}
             >
@@ -232,7 +229,7 @@ function AssetCard({
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded bg-neutral-950/80 px-1.5 py-0.5 text-[10px] font-medium text-neutral-300 ring-1 ring-neutral-700">
+    <span className="rounded-full border border-white/10 bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-neutral-200 backdrop-blur-sm">
       {children}
     </span>
   );

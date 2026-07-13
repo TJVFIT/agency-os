@@ -116,12 +116,21 @@ export function PaymentDialog({
           <button
             type="button"
             onClick={() => setExtra((v) => !v)}
-            className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+            aria-pressed={extra}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
               extra
-                ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                : 'border-neutral-700 bg-neutral-950 text-neutral-500'
+                ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-100 shadow-[0_0_0_1px_rgba(129,140,248,0.12)]'
+                : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/15 hover:text-neutral-300'
             }`}
           >
+            <span
+              aria-hidden
+              className={`h-1.5 w-1.5 rounded-full transition-colors duration-300 ${
+                extra
+                  ? 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.6)]'
+                  : 'bg-neutral-600'
+              }`}
+            />
             {tr.finance.extraWork}
           </button>
           <Field label={tr.portal.availabilityNote}>
@@ -132,7 +141,7 @@ export function PaymentDialog({
               maxLength={500}
             />
           </Field>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-300">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"

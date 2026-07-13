@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { getCardDetail, listProfiles } from '@/lib/db/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { parseAssetVariants } from '@/lib/db/domain';
@@ -30,7 +32,7 @@ export default async function CardPage({
   if (!card) {
     return (
       <div className="p-4 md:p-6">
-        <p className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-400">
+        <p className="animate-enter rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-400">
           {tr.errors.cardNotFound}
         </p>
       </div>
@@ -52,14 +54,25 @@ export default async function CardPage({
 
   return (
     <div className="p-4 md:p-6">
+      <div className="animate-enter mb-3 flex items-center gap-1.5 text-xs">
+        <Link
+          href="/board"
+          className="text-neutral-500 transition-colors duration-300 hover:text-neutral-200"
+        >
+          ← {tr.nav.board}
+        </Link>
+        <span className="text-neutral-700">/</span>
+        <span className="text-neutral-500">{tr.card.workroom}</span>
+      </div>
+
       <CardHeader
         card={card}
         profiles={profiles.map((p) => ({ id: p.id, full_name: p.full_name }))}
       />
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Left / main — content + AI */}
-        <div className="space-y-4 lg:col-span-2">
+        <div className="stagger-children space-y-5 lg:col-span-2">
           <ContentTabs
             cardId={card.id}
             langs={langs}
@@ -75,7 +88,7 @@ export default async function CardPage({
         </div>
 
         {/* Right / side — status controls + comments */}
-        <div className="space-y-4">
+        <div className="stagger-children space-y-5">
           <StatusControls
             cardId={card.id}
             status={card.status}

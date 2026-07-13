@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { Button, Field, Input } from '@/components/ui';
+import { Button, Field, Input, Label } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import { createClientAction } from '@/lib/actions/clients';
 import { tr } from '@/lib/i18n/tr';
@@ -127,19 +127,17 @@ export function NewClientDialog() {
             <Input name="industry" placeholder="restaurant" maxLength={60} />
           </Field>
           <div>
-            <span className="mb-1 block text-xs font-medium text-neutral-400">
-              {tr.clients.langs}
-            </span>
+            <Label>{tr.clients.langs}</Label>
             <div className="flex gap-2">
               {LANGS.map((l) => (
                 <button
                   key={l}
                   type="button"
                   onClick={() => toggleLang(l)}
-                  className={`rounded-md border px-3 py-1.5 text-sm uppercase transition-colors ${
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium uppercase transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
                     langs.includes(l)
-                      ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                      : 'border-neutral-700 bg-neutral-950 text-neutral-500'
+                      ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200'
+                      : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/20'
                   }`}
                 >
                   {l}

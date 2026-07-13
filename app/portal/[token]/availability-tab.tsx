@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
+import { Button, Field, Input } from '@/components/ui';
 import { tr } from '@/lib/i18n/tr';
 import { fmtIstanbul, fmtIstanbulTime } from '@/lib/dates';
 import type { PortalAvailability } from '@/lib/portal/service';
@@ -45,46 +46,48 @@ export function AvailabilityTab({
     });
   }
 
-  const inputCls =
-    'w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none [color-scheme:dark] placeholder:text-neutral-600 focus:border-neutral-400';
-
   return (
     <div className="space-y-4">
       {sent ? (
-        <p className="rounded-lg border border-emerald-900 bg-emerald-950 p-4 text-center text-sm text-emerald-200">
+        <p className="animate-enter rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center text-sm text-emerald-200">
           {tr.portal.availabilitySent}
         </p>
       ) : (
-        <div className="space-y-2 rounded-xl border border-neutral-800 bg-neutral-900 p-3">
-          <input
-            type="datetime-local"
-            value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
-            className={inputCls}
-          />
-          <input
-            type="datetime-local"
-            value={endsAt}
-            min={startsAt || undefined}
-            onChange={(e) => setEndsAt(e.target.value)}
-            className={inputCls}
-          />
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder={tr.portal.availabilityNote}
-            maxLength={500}
-            className={inputCls}
-          />
-          <button
-            onClick={submit}
+        <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <Field label={tr.production.leaveStart}>
+            <Input
+              type="datetime-local"
+              className="[color-scheme:dark]"
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+            />
+          </Field>
+          <Field label={tr.production.leaveEnd}>
+            <Input
+              type="datetime-local"
+              className="[color-scheme:dark]"
+              value={endsAt}
+              min={startsAt || undefined}
+              onChange={(e) => setEndsAt(e.target.value)}
+            />
+          </Field>
+          <Field label={tr.portal.availabilityNote}>
+            <Input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={500}
+            />
+          </Field>
+          <Button
+            variant="primary"
+            className="w-full !py-3.5"
             disabled={pending || !valid}
-            className="w-full rounded-lg bg-neutral-100 py-2.5 text-sm font-semibold text-neutral-950 disabled:opacity-40"
+            onClick={submit}
           >
             {pending ? tr.common.loading : tr.portal.availabilityAdd}
-          </button>
+          </Button>
           {error && (
-            <p className="text-center text-xs text-red-400">
+            <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-center text-xs text-red-300">
               {tr.common.error}
             </p>
           )}
@@ -92,11 +95,11 @@ export function AvailabilityTab({
       )}
 
       {windows.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="stagger-children space-y-2">
           {windows.map((w) => (
             <li
               key={w.id}
-              className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2"
+              className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
             >
               <p className="text-sm text-neutral-200">
                 {fmtIstanbul(w.startsAt)} – {fmtIstanbulTime(w.endsAt)}

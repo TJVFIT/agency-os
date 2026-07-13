@@ -80,22 +80,22 @@ export function RoutePanel({
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         {route && (
-          <div className="space-y-1">
+          <div className="animate-enter space-y-2">
             {route.stops.length === 0 ? (
               <p className="text-xs text-neutral-500">
                 {tr.production.noShoots}
               </p>
             ) : (
-              <ol className="space-y-1">
+              <ol className="stagger-children space-y-1.5">
                 {route.stops.map((stop) => (
                   <li
                     key={stop.id}
-                    className="flex items-baseline justify-between gap-2 rounded bg-neutral-900 px-2 py-1 text-xs"
+                    className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 text-xs transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.10] hover:bg-white/[0.05]"
                   >
-                    <span className="text-neutral-200">
-                      <span className="mr-1.5 font-semibold text-neutral-500">
-                        {stop.order}.
-                      </span>
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[10px] font-semibold text-neutral-300">
+                      {stop.order}
+                    </span>
+                    <span className="flex-1 truncate text-neutral-200">
                       {stop.name}
                     </span>
                     <span className="whitespace-nowrap text-neutral-500">
@@ -106,12 +106,16 @@ export function RoutePanel({
               </ol>
             )}
             {route.stops.length > 0 && (
-              <p className="pt-1 text-xs font-medium text-neutral-300">
-                {interpolate(tr.production.routeTotal, { km: route.totalKm })}{' '}
-                <span className="text-neutral-500">
-                  · {route.totalMinutes} dk
+              <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.04] px-2.5 py-1.5 text-xs font-medium text-neutral-200">
+                <span>
+                  {interpolate(tr.production.routeTotal, {
+                    km: route.totalKm,
+                  })}
                 </span>
-              </p>
+                <span className="text-neutral-500">
+                  {route.totalMinutes} dk
+                </span>
+              </div>
             )}
           </div>
         )}

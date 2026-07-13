@@ -232,23 +232,23 @@ export function CalendarView({
             </option>
           ))}
         </Select>
-        <div className="flex overflow-hidden rounded-md border border-neutral-700">
+        <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <button
             onClick={() => setView('month')}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] ${
               view === 'month'
-                ? 'bg-neutral-100 text-neutral-950'
-                : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
+                ? 'bg-neutral-50 text-neutral-950 shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
+                : 'text-neutral-400 hover:text-neutral-100'
             }`}
           >
             {tr.calendar.monthView}
           </button>
           <button
             onClick={() => setView('week')}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] ${
               view === 'week'
-                ? 'bg-neutral-100 text-neutral-950'
-                : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
+                ? 'bg-neutral-50 text-neutral-950 shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
+                : 'text-neutral-400 hover:text-neutral-100'
             }`}
           >
             {tr.calendar.weekView}
@@ -256,11 +256,11 @@ export function CalendarView({
         </div>
       </PageHeader>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="animate-enter mb-3 flex flex-wrap items-center gap-2">
         <Button variant="secondary" onClick={() => shift(-1)} aria-label="prev">
           ‹
         </Button>
-        <span className="min-w-40 text-center text-sm font-medium text-neutral-200">
+        <span className="min-w-40 text-center text-sm font-medium tracking-tight text-neutral-200">
           {rangeLabel}
         </span>
         <Button variant="secondary" onClick={() => shift(1)} aria-label="next">
@@ -282,11 +282,15 @@ export function CalendarView({
       </div>
 
       {approvalError && (
-        <p className="mb-3 text-sm text-red-400">{approvalError}</p>
+        <p className="mb-3 rounded-full border border-red-500/25 bg-red-500/[0.08] px-3 py-1.5 text-xs text-red-200">
+          {approvalError}
+        </p>
       )}
 
       {rescheduleError && (
-        <p className="mb-3 text-sm text-red-400">{rescheduleError}</p>
+        <p className="mb-3 rounded-full border border-red-500/25 bg-red-500/[0.08] px-3 py-1.5 text-xs text-red-200">
+          {rescheduleError}
+        </p>
       )}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
@@ -297,14 +301,14 @@ export function CalendarView({
               {WEEKDAYS.map((w) => (
                 <div
                   key={w}
-                  className="px-1 text-xs font-medium text-neutral-500"
+                  className="px-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500"
                 >
                   {w}
                 </div>
               ))}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="stagger-children space-y-1.5">
               {weeks.map((week, wi) => (
                 <div key={wi} className="relative">
                   {view === 'month' && singleClient && (
@@ -312,7 +316,7 @@ export function CalendarView({
                       onClick={() => sendWeekForApproval(week[0])}
                       disabled={pending}
                       title={tr.calendar.sendWeekForApproval}
-                      className="absolute -left-1 top-1 z-10 hidden -translate-x-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-50 xl:block"
+                      className="absolute -left-1 top-1 z-10 hidden -translate-x-full rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-neutral-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50 xl:block"
                     >
                       ⇢
                     </button>
@@ -347,7 +351,7 @@ export function CalendarView({
             {unscheduled.length === 0 ? (
               <p className="text-sm text-neutral-500">{tr.board.empty}</p>
             ) : (
-              <div className="space-y-1.5">
+              <div className="stagger-children space-y-1.5">
                 {unscheduled.map((c) => (
                   <DraggableCard key={c.id} card={c} />
                 ))}
@@ -387,17 +391,19 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-lg border p-1.5 ${
+      className={`flex flex-col rounded-lg border p-1.5 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
         tall ? 'min-h-64' : 'min-h-28'
       } ${dimmed ? 'opacity-45' : ''} ${
         isOver
-          ? 'border-neutral-400 bg-neutral-800/60'
-          : 'border-neutral-800 bg-neutral-900/40'
+          ? 'border-indigo-300/50 bg-indigo-400/[0.10] shadow-[inset_0_1px_0_rgba(165,180,252,0.15),0_0_24px_-8px_rgba(129,140,248,0.5)]'
+          : isToday
+            ? 'border-indigo-300/30 bg-indigo-400/[0.05] shadow-[inset_0_1px_0_rgba(165,180,252,0.1)]'
+            : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.03]'
       }`}
     >
       <span
-        className={`mb-1 text-xs ${
-          isToday ? 'font-semibold text-neutral-50' : 'text-neutral-500'
+        className={`mb-1 text-xs tabular-nums ${
+          isToday ? 'font-semibold text-indigo-200' : 'text-neutral-500'
         }`}
       >
         {isToday ? `• ${label}` : label}
@@ -438,7 +444,7 @@ function CopyBlock({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-3">
-      <p className="whitespace-pre-wrap rounded-md border border-neutral-800 bg-neutral-950 p-3 text-sm text-neutral-200">
+      <p className="whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-neutral-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
         {text}
       </p>
       <div className="flex justify-end">

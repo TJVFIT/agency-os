@@ -112,7 +112,7 @@ function EmptyState({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">
+    <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">
       {children}
     </h2>
   );
@@ -171,7 +171,7 @@ function QuotaBar({
     <div>
       <div className="mb-0.5 flex items-center justify-between text-xs">
         <span className="text-neutral-400">{label}</span>
-        <span className="text-neutral-400">
+        <span className="font-mono tabular-nums text-neutral-400">
           {used}/{quota}
         </span>
       </div>
@@ -254,7 +254,7 @@ function PackagesSection() {
                   <span className="text-sm font-medium text-neutral-100">
                     {pkg.name}
                   </span>
-                  <span className="font-mono text-sm text-neutral-300">
+                  <span className="font-mono text-sm tabular-nums text-neutral-300">
                     {fmtTL(pkg.price)}
                   </span>
                 </div>
@@ -513,11 +513,11 @@ function PaymentsSection() {
                         <td className="px-2 py-2 text-neutral-100">
                           {row.title}
                         </td>
-                        <td className="px-2 py-2 text-right font-mono font-medium text-neutral-100">
+                        <td className="px-2 py-2 text-right font-mono font-medium tabular-nums text-neutral-100">
                           {fmtTL(row.amount)}
                         </td>
                         <td
-                          className={`px-2 py-2 ${
+                          className={`px-2 py-2 tabular-nums ${
                             overdue
                               ? 'font-medium text-red-300'
                               : 'text-neutral-400'
@@ -771,11 +771,11 @@ function AdsSection() {
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
                     <span>
                       {tr.finance.budget}:{' '}
-                      <span className="font-mono text-neutral-200">
+                      <span className="font-mono tabular-nums text-neutral-200">
                         {fmtTL(ad.budget)}
                       </span>
                     </span>
-                    <span className="text-neutral-400">
+                    <span className="tabular-nums text-neutral-400">
                       {fmtDay(ad.startsOn)} – {fmtDay(ad.endsOn)}
                     </span>
                     {next && (

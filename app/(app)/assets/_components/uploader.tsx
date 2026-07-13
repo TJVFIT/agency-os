@@ -166,13 +166,15 @@ export function Uploader({ clients }: { clients: ClientOption[] }) {
           </Field>
 
           <Field label={tr.nav.assets}>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,video/*"
-              disabled={busy}
-              className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm text-neutral-100 file:mr-3 file:rounded file:border-0 file:bg-neutral-800 file:px-2 file:py-1 file:text-neutral-200"
-            />
+            <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-5 text-center transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/25 hover:bg-white/[0.04]">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,video/*"
+                disabled={busy}
+                className="w-full text-xs text-neutral-400 file:mr-3 file:rounded-full file:border-0 file:bg-white/[0.08] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-200 file:transition-colors file:duration-300 hover:file:bg-white/[0.14] disabled:opacity-40"
+              />
+            </div>
           </Field>
 
           {status && <p className="text-xs text-neutral-400">{status}</p>}

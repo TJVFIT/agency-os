@@ -95,7 +95,7 @@ export function BrandProfileEditor({
             type="checkbox"
             checked={emojiOk}
             onChange={(e) => setEmojiOk(e.target.checked)}
-            className="h-4 w-4 rounded border-neutral-700 bg-neutral-950 accent-neutral-200"
+            className="h-4 w-4 rounded border-white/15 bg-white/[0.03] accent-neutral-200"
           />
           <span className="text-sm text-neutral-200">{tr.clients.emojiOk}</span>
         </label>

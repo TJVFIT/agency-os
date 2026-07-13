@@ -124,14 +124,14 @@ export default async function DashboardPage() {
         />
       </PageHeader>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="stagger-children grid gap-4 lg:grid-cols-3">
         <Panel title={tr.dashboard.myQueue} className="lg:col-span-2">
           {queue.mine.length === 0 ? (
             <p className="text-sm text-neutral-500">
               {tr.dashboard.myQueueEmpty}
             </p>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="stagger-children grid gap-2 sm:grid-cols-2">
               {queue.mine.map((card) => (
                 <CardTile key={card.id} card={card} showStatus />
               ))}
@@ -139,11 +139,11 @@ export default async function DashboardPage() {
           )}
 
           {isManager && queue.waiting.length > 0 && (
-            <div className="mt-5 border-t border-neutral-800 pt-4">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
+            <div className="mt-5 border-t border-white/[0.06] pt-4">
+              <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
                 {tr.dashboard.waitingOnYou}
               </h3>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="stagger-children grid gap-2 sm:grid-cols-2">
                 {queue.waiting.map((card) => (
                   <CardTile key={card.id} card={card} showStatus />
                 ))}
@@ -158,17 +158,17 @@ export default async function DashboardPage() {
               {tr.dashboard.gapRadarEmpty}
             </p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="stagger-children space-y-2">
               {gaps.map((client) => (
                 <li
                   key={client.id}
-                  className="flex items-start gap-2 rounded-lg border border-red-900/60 bg-red-950/30 px-3 py-2 text-sm"
+                  className="flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.08] px-3 py-2.5 text-sm"
                 >
                   <span
-                    className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500"
+                    className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]"
                     aria-hidden
                   />
-                  <span className="text-red-200">
+                  <span className="leading-snug text-red-200">
                     {interpolate(tr.dashboard.gapRadarWarning, {
                       client: client.name,
                     })}

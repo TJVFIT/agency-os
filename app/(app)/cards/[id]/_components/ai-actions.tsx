@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
-import { Button, Input, Panel, Textarea } from '@/components/ui';
+import { Button, Input, Label, Panel, Textarea } from '@/components/ui';
 import { useRealtimeEvent } from '@/components/realtime-provider';
 import { createSupabaseBrowser } from '@/lib/supabase/client';
 import { enqueueAiJob } from '@/lib/actions/ai';
@@ -21,6 +21,16 @@ type Kind = 'caption' | 'translate' | 'reply';
 // Safety net for a pending AI slot: if no terminal ai_jobs event resolves it
 // within this window, reconcile once more and then fail loud.
 const PENDING_TIMEOUT_MS = 90_000;
+
+/** Small pulsing dot + label used inside buttons while a job is "işleniyor". */
+function PendingLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+      {children}
+    </>
+  );
+}
 
 interface CaptionState {
   status: 'pending' | 'done' | 'error';
@@ -216,9 +226,7 @@ export function AiActions({
     <Panel title="AI">
       {/* Caption generation */}
       <div className="space-y-2">
-        <span className="block text-xs font-medium text-neutral-400">
-          {tr.ai.brief}
-        </span>
+        <Label>{tr.ai.brief}</Label>
         <Textarea
           rows={2}
           value={brief}
@@ -232,9 +240,11 @@ export function AiActions({
             disabled={pending || caption?.status === 'pending'}
             onClick={runCaption}
           >
-            {caption?.status === 'pending'
-              ? tr.ai.pending
-              : tr.ai.generateCaptions}
+            {caption?.status === 'pending' ? (
+              <PendingLabel>{tr.ai.pending}</PendingLabel>
+            ) : (
+              tr.ai.generateCaptions
+            )}
           </Button>
           {hasEn && (
             <Button
@@ -243,9 +253,11 @@ export function AiActions({
               disabled={pending || translate?.status === 'pending'}
               onClick={runTranslate}
             >
-              {translate?.status === 'pending'
-                ? tr.ai.pending
-                : tr.ai.translate}
+              {translate?.status === 'pending' ? (
+                <PendingLabel>{tr.ai.pending}</PendingLabel>
+              ) : (
+                tr.ai.translate
+              )}
             </Button>
           )}
         </div>
@@ -257,25 +269,23 @@ export function AiActions({
       )}
       {caption?.status === 'done' && caption.result && (
         <div className="mt-3 space-y-2">
-          <span className="block text-xs font-medium text-neutral-400">
-            {tr.ai.pickVariant}
-          </span>
+          <Label>{tr.ai.pickVariant}</Label>
           {caption.result.variants.map((v, i) => (
             <div
               key={i}
-              className="rounded-lg border border-neutral-800 bg-neutral-950 p-3"
+              className="rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
             >
               <p className="whitespace-pre-wrap text-sm text-neutral-200">
                 {v.caption}
               </p>
               {v.hashtags.length > 0 && (
-                <p className="mt-1 text-xs text-sky-400">
+                <p className="mt-1.5 text-xs text-sky-300">
                   {v.hashtags
                     .map((h) => (h.startsWith('#') ? h : `#${h}`))
                     .join(' ')}
                 </p>
               )}
-              <div className="mt-2 flex justify-end">
+              <div className="mt-2.5 flex justify-end">
                 <Button
                   type="button"
                   variant="primary"
@@ -287,7 +297,9 @@ export function AiActions({
               </div>
             </div>
           ))}
-          {applied && <p className="text-xs text-emerald-400">{applied}</p>}
+          {applied && (
+            <p className="text-xs text-emerald-400">✓ {applied}</p>
+          )}
         </div>
       )}
 
@@ -296,12 +308,12 @@ export function AiActions({
         <p className="mt-3 text-sm text-red-400">{tr.ai.failed}</p>
       )}
       {translate?.status === 'done' && translate.result && (
-        <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-950 p-3">
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <p className="whitespace-pre-wrap text-sm text-neutral-200">
             {translate.result.translation}
           </p>
           {translate.result.notes && (
-            <p className="mt-2 text-xs text-amber-400">
+            <p className="mt-2 text-xs text-amber-300">
               {tr.ai.translationNotes}: {translate.result.notes}
             </p>
           )}
@@ -309,10 +321,8 @@ export function AiActions({
       )}
 
       {/* Reply drafting */}
-      <div className="mt-4 space-y-2 border-t border-neutral-800 pt-4">
-        <span className="block text-xs font-medium text-neutral-400">
-          {tr.ai.replyIncoming}
-        </span>
+      <div className="mt-5 space-y-2 border-t border-white/[0.06] pt-4">
+        <Label>{tr.ai.replyIncoming}</Label>
         <Textarea
           rows={2}
           value={incoming}
@@ -330,7 +340,11 @@ export function AiActions({
           disabled={pending || reply?.status === 'pending' || !incoming.trim()}
           onClick={runReply}
         >
-          {reply?.status === 'pending' ? tr.ai.pending : tr.ai.draftReply}
+          {reply?.status === 'pending' ? (
+            <PendingLabel>{tr.ai.pending}</PendingLabel>
+          ) : (
+            tr.ai.draftReply
+          )}
         </Button>
       </div>
 
@@ -338,12 +352,12 @@ export function AiActions({
         <p className="mt-3 text-sm text-red-400">{tr.ai.failed}</p>
       )}
       {reply?.status === 'done' && reply.result && (
-        <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-950 p-3">
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <p className="whitespace-pre-wrap text-sm text-neutral-200">
             {reply.result.reply}
           </p>
           {reply.result.escalate && (
-            <p className="mt-2 rounded-md border border-amber-900 bg-amber-950 px-2 py-1 text-xs text-amber-300">
+            <p className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2.5 py-1.5 text-xs text-amber-200">
               ⚠ {tr.ai.replyEscalate}
               {reply.result.escalate_reason
                 ? ` — ${reply.result.escalate_reason}`

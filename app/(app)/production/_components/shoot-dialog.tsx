@@ -194,11 +194,11 @@ export function ShootDialog({
 
         <div>
           <Label>{tr.production.crew}</Label>
-          <div className="max-h-32 space-y-1 overflow-y-auto rounded-md border border-neutral-800 p-2">
+          <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-white/[0.08] bg-white/[0.02] p-2 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
             {profiles.map((p) => (
               <label
                 key={p.id}
-                className="flex items-center gap-2 text-sm text-neutral-200"
+                className="flex items-center gap-2 rounded-md px-1 py-0.5 text-sm text-neutral-200 transition-colors duration-200 hover:bg-white/[0.04]"
               >
                 <input
                   type="checkbox"
@@ -227,7 +227,7 @@ export function ShootDialog({
           </Select>
         </Field>
 
-        <div className="rounded-md border border-neutral-800 p-2">
+        <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-2">
           <div className="flex items-center justify-between">
             <Label className="mb-0">{tr.production.suggestions}</Label>
             <Button
@@ -249,7 +249,7 @@ export function ShootDialog({
                   <button
                     type="button"
                     onClick={() => applySuggestion(slot)}
-                    className="w-full rounded px-2 py-1 text-left text-xs text-neutral-300 hover:bg-neutral-800"
+                    className="w-full rounded-lg px-2 py-1 text-left text-xs text-neutral-300 transition-colors duration-200 hover:bg-white/[0.06]"
                   >
                     <span className="font-medium text-neutral-100">
                       {fmtIstanbul(slot.startsAt, 'd MMM HH:mm')}–

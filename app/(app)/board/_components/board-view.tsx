@@ -15,6 +15,7 @@ import {
 
 import { Select } from '@/components/ui';
 import { CardTile } from '@/components/card-tile';
+import { StatusBadge } from '@/components/status-badge';
 import { useRealtimeEvent } from '@/components/realtime-provider';
 import { transitionCardStatus } from '@/lib/actions/cards';
 import { CARD_STATUSES, type CardStatus } from '@/lib/status';
@@ -74,19 +75,17 @@ function Column({
   return (
     <div className="flex w-64 shrink-0 flex-col">
       <div className="mb-2 flex items-center justify-between px-1">
-        <span className="text-sm font-semibold text-neutral-200">
-          {tr.statuses[status]}
-        </span>
-        <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-400">
+        <StatusBadge status={status} />
+        <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-px text-[11px] tabular-nums text-neutral-400">
           {cards.length}
         </span>
       </div>
       <div
         ref={setNodeRef}
-        className={`flex min-h-32 flex-1 flex-col gap-2 rounded-xl border p-2 transition-colors ${
+        className={`flex min-h-32 flex-1 flex-col gap-2 rounded-xl border p-2 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           isOver
-            ? 'border-neutral-500 bg-neutral-900'
-            : 'border-neutral-800 bg-neutral-900/40'
+            ? 'border-indigo-300/40 bg-indigo-400/[0.06] shadow-[inset_0_1px_0_rgba(165,180,252,0.15),0_0_24px_-8px_rgba(129,140,248,0.45)]'
+            : 'border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-white/[0.01] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.10]'
         }`}
       >
         {cards.length === 0 ? (
@@ -218,7 +217,7 @@ export function BoardView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="animate-enter flex flex-wrap items-center gap-2">
         <Select
           aria-label={tr.board.filterClient}
           value={clientId}
@@ -256,7 +255,7 @@ export function BoardView({
           ))}
         </Select>
         {toast && (
-          <span className="ml-auto rounded-md border border-red-900 bg-red-950 px-2.5 py-1 text-xs text-red-200">
+          <span className="ml-auto rounded-full border border-red-500/25 bg-red-500/[0.08] px-3 py-1.5 text-xs text-red-200">
             {toast.text}
           </span>
         )}
@@ -268,7 +267,7 @@ export function BoardView({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="stagger-children flex gap-3 overflow-x-auto pb-2">
           {COLUMNS.map((status) => (
             <Column
               key={status}
@@ -279,7 +278,7 @@ export function BoardView({
         </div>
         <DragOverlay>
           {activeCard ? (
-            <div className="w-60 rotate-1">
+            <div className="w-60 rotate-1 drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
               <CardTile card={activeCard} />
             </div>
           ) : null}

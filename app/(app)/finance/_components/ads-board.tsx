@@ -3,12 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { Button, Input } from '@/components/ui';
+import { Button, Input, Label, Panel } from '@/components/ui';
 import { setAdResults, transitionAdTask } from '@/lib/actions/finance';
 import type { AdTask, Platform } from '@/lib/db/types';
 import { tr } from '@/lib/i18n/tr';
 
 import { AdDialog } from './ad-dialog';
+import { GlassChip } from './glass-chip';
 
 type AdStatus = AdTask['status'];
 
@@ -45,18 +46,18 @@ export function AdsBoard({
   isManager: boolean;
 }) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="stagger-children grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {STATUS_ORDER.map((status) => {
         const group = ads.filter((a) => a.status === status);
         return (
           <section key={status}>
-            <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+            <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">
               {tr.finance.adStatuses[status]}
-              <span className="rounded-full bg-neutral-800 px-1.5 text-[11px] text-neutral-400">
+              <span className="rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-px text-[11px] font-medium text-neutral-400">
                 {group.length}
               </span>
             </h3>
-            <div className="space-y-2">
+            <div className="stagger-children space-y-2.5">
               {group.length === 0 && (
                 <p className="text-xs text-neutral-600">{tr.common.none}</p>
               )}
@@ -90,13 +91,13 @@ function AdCard({ ad, isManager }: { ad: AdRow; isManager: boolean }) {
   }
 
   return (
-    <article className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+    <Panel className="transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-medium text-neutral-100">
-            {tr.platforms[ad.platform]}
+          <GlassChip tone="neutral">{tr.platforms[ad.platform]}</GlassChip>
+          <p className="mt-1.5 text-sm font-medium text-neutral-100">
+            {ad.clientName}
           </p>
-          <p className="text-xs text-neutral-400">{ad.clientName}</p>
         </div>
         {isManager && (
           <AdDialog
@@ -113,14 +114,18 @@ function AdCard({ ad, isManager }: { ad: AdRow; isManager: boolean }) {
         )}
       </div>
       {ad.objective && (
-        <p className="mt-1.5 text-xs text-neutral-300">{ad.objective}</p>
+        <p className="mt-2 text-xs text-neutral-300">{ad.objective}</p>
       )}
-      <p className="mt-1.5 text-xs text-neutral-400">
+      <p className="mt-2 text-xs text-neutral-500">
         {tr.finance.budget}:{' '}
-        <span className="text-neutral-200">{ad.budgetFmt}</span>
+        <span className="font-mono tabular-nums text-neutral-200">
+          {ad.budgetFmt}
+        </span>
       </p>
       {ad.datesFmt && (
-        <p className="mt-0.5 text-xs text-neutral-500">{ad.datesFmt}</p>
+        <p className="mt-0.5 text-xs tabular-nums text-neutral-500">
+          {ad.datesFmt}
+        </p>
       )}
 
       {ad.status === 'done' && (
@@ -128,22 +133,22 @@ function AdCard({ ad, isManager }: { ad: AdRow; isManager: boolean }) {
       )}
 
       {isManager && ad.next.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {ad.next.map((to) => (
             <Button
               key={to}
               variant={to === 'cancelled' ? 'danger' : 'secondary'}
               disabled={pending}
               onClick={() => onTransition(to)}
-              className="px-2 py-1 text-xs"
+              className="px-2.5 py-1 text-xs"
             >
               {to === 'planned' ? '' : TRANSITION_LABELS[to]}
             </Button>
           ))}
         </div>
       )}
-      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
-    </article>
+      {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+    </Panel>
   );
 }
 
@@ -173,12 +178,10 @@ function ResultsMiniForm({ ad, isManager }: { ad: AdRow; isManager: boolean }) {
     const entries = RESULT_FIELDS.filter((f) => values[f.key] !== '');
     if (entries.length === 0 && !values.note) return null;
     return (
-      <div className="mt-2 rounded-md border border-neutral-800 bg-neutral-950 p-2 text-xs text-neutral-400">
-        <p className="mb-1 font-medium text-neutral-300">
-          {tr.finance.results}
-        </p>
+      <div className="mt-2.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5 text-xs text-neutral-400">
+        <Label>{tr.finance.results}</Label>
         {entries.map((f) => (
-          <p key={f.key}>
+          <p key={f.key} className="tabular-nums">
             {f.label}: {values[f.key]}
           </p>
         ))}
@@ -210,14 +213,12 @@ function ResultsMiniForm({ ad, isManager }: { ad: AdRow; isManager: boolean }) {
   }
 
   return (
-    <div className="mt-2 rounded-md border border-neutral-800 bg-neutral-950 p-2">
-      <p className="mb-1.5 text-xs font-medium text-neutral-300">
-        {tr.finance.results}
-      </p>
+    <div className="mt-2.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">
+      <Label>{tr.finance.results}</Label>
       <div className="grid grid-cols-3 gap-1.5">
         {RESULT_FIELDS.map((f) => (
           <label key={f.key} className="block">
-            <span className="mb-0.5 block text-[10px] text-neutral-500">
+            <span className="mb-0.5 block text-[10px] font-medium uppercase tracking-[0.06em] text-neutral-500">
               {f.label}
             </span>
             <Input
@@ -227,7 +228,7 @@ function ResultsMiniForm({ ad, isManager }: { ad: AdRow; isManager: boolean }) {
               onChange={(e) =>
                 setValues((v) => ({ ...v, [f.key]: e.target.value }))
               }
-              className="px-1.5 py-1 text-xs"
+              className="px-1.5 py-1 text-xs tabular-nums"
             />
           </label>
         ))}
@@ -241,14 +242,14 @@ function ResultsMiniForm({ ad, isManager }: { ad: AdRow; isManager: boolean }) {
       />
       <div className="mt-1.5 flex items-center justify-end gap-2">
         {saved && (
-          <span className="text-xs text-emerald-400">{tr.common.saved}</span>
+          <span className="text-xs text-emerald-300">{tr.common.saved}</span>
         )}
-        {error && <span className="text-xs text-red-400">{error}</span>}
+        {error && <span className="text-xs text-red-300">{error}</span>}
         <Button
           variant="secondary"
           disabled={pending}
           onClick={onSave}
-          className="px-2 py-1 text-xs"
+          className="px-2.5 py-1 text-xs"
         >
           {pending ? tr.common.loading : tr.common.save}
         </Button>

@@ -19,7 +19,7 @@ export function PostizMapping({ accounts }: { accounts: PostizAccount[] }) {
     return <p className="text-sm text-neutral-500">{tr.common.none}</p>;
   }
   return (
-    <div className="flex flex-col divide-y divide-neutral-900">
+    <div className="stagger-children flex flex-col divide-y divide-white/[0.06]">
       {accounts.map((a) => (
         <AccountRow key={a.id} account={a} />
       ))}
@@ -53,7 +53,7 @@ function AccountRow({ account }: { account: PostizAccount }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 py-2.5">
+    <div className="-mx-2 flex flex-wrap items-center gap-3 rounded-lg px-2 py-2.5 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.02]">
       <div className="min-w-[10rem]">
         <div className="text-sm text-neutral-200">{account.clientName}</div>
         <div className="text-xs text-neutral-500">
@@ -71,8 +71,10 @@ function AccountRow({ account }: { account: PostizAccount }) {
           {pending ? tr.common.processing : tr.common.save}
         </Button>
       </div>
-      {msg && <span className="text-xs text-emerald-400">{msg}</span>}
-      {err && <span className="text-xs text-red-400">{err}</span>}
+      {msg && (
+        <span className="animate-enter text-xs text-emerald-400">{msg}</span>
+      )}
+      {err && <span className="animate-enter text-xs text-red-400">{err}</span>}
     </div>
   );
 }

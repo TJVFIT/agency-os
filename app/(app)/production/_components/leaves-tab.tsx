@@ -76,13 +76,13 @@ export function LeavesTab({
       {leaves.length === 0 ? (
         <p className="text-sm text-neutral-500">{tr.common.none}</p>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="stagger-children space-y-1.5">
           {leaves.map((leave) => {
             const canDelete = canManage || leave.profile_id === userId;
             return (
               <li
                 key={leave.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-800 bg-neutral-900/50 px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.10] hover:bg-white/[0.05]"
               >
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                   <span className="text-sm font-medium text-neutral-100">
@@ -103,7 +103,7 @@ export function LeavesTab({
                     variant="ghost"
                     disabled={pending}
                     onClick={() => onDelete(leave.id)}
-                    className="px-2 py-1 text-xs"
+                    className="px-2.5 py-1 text-xs"
                   >
                     {tr.common.delete}
                   </Button>

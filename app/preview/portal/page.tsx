@@ -139,14 +139,14 @@ function ApprovalsTab({
               <div className="mt-3 flex gap-2">
                 <Button
                   variant="primary"
-                  className="flex-1"
+                  className="flex-1 !py-3.5"
                   onClick={() => finish(card, 'approved')}
                 >
                   ✓ {tr.approval.approveOne}
                 </Button>
                 <Button
                   variant={comment !== undefined ? 'danger' : 'secondary'}
-                  className="flex-1"
+                  className="flex-1 !py-3.5"
                   onClick={() =>
                     setRejecting((p) => ({ ...p, [card.id]: p[card.id] ?? '' }))
                   }
@@ -168,7 +168,7 @@ function ApprovalsTab({
                   />
                   <Button
                     variant="danger"
-                    className="w-full"
+                    className="w-full !py-3.5"
                     onClick={() => finish(card, 'rejected', comment)}
                   >
                     {tr.card.sendComment}
@@ -245,7 +245,7 @@ function IdeasTab({ client }: { client: StoreClient }) {
         </Field>
         <Button
           variant="primary"
-          className="w-full"
+          className="w-full !py-3.5"
           disabled={!title.trim()}
           onClick={submit}
         >
@@ -341,7 +341,7 @@ function AvailabilityTab() {
         </Field>
         <Button
           variant="primary"
-          className="w-full"
+          className="w-full !py-3.5"
           disabled={!valid}
           onClick={submit}
         >

@@ -24,6 +24,14 @@ const MODE_RANK: Record<AutomationMode, number> = {
   full: 2,
 };
 
+/** Glow-dot color per mode — matches the real settings page's master switch
+ *  (app/(app)/settings/_components/automation-settings.tsx). */
+const MASTER_DOT: Record<AutomationMode, string> = {
+  suggest: 'bg-neutral-500',
+  semi: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]',
+  full: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]',
+};
+
 /** Master caps every domain: effective mode = min(master, own). */
 function effectiveMode(
   master: AutomationMode,
@@ -79,14 +87,19 @@ function AutomationShowcase() {
 
   return (
     <Panel title={tr.automation.title} className="animate-enter">
-      <div className="stagger-children flex flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
-          <span className="text-sm font-semibold text-neutral-50">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_-14px_rgba(0,0,0,0.6)]">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full transition-colors duration-300 ${MASTER_DOT[master]}`}
+          />
+          <span className="text-sm font-semibold tracking-tight text-neutral-50">
             {tr.automation.master}
           </span>
-          <ModeSegments value={master} onChange={setMaster} />
         </div>
+        <ModeSegments value={master} onChange={setMaster} />
+      </div>
 
+      <div className="stagger-children flex flex-col">
         {DOMAINS.map((domain) => {
           const own = modes[domain];
           const effective = effectiveMode(master, own);
@@ -100,7 +113,7 @@ function AutomationShowcase() {
                   {tr.automation.domains[domain]}
                 </div>
                 {effective !== own && (
-                  <div className="animate-enter text-xs text-neutral-500">
+                  <div className="animate-enter text-xs text-amber-400">
                     → {tr.automation.modes[effective]}
                   </div>
                 )}

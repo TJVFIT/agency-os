@@ -24,9 +24,14 @@ export function ReportBody({ markdown }: { markdown: string }) {
     const items = bullets;
     bullets = [];
     blocks.push(
-      <ul key={key} className="ml-4 list-disc space-y-1 text-neutral-200">
+      <ul
+        key={key}
+        className="ml-4 list-disc space-y-1.5 text-neutral-200 marker:text-neutral-600"
+      >
         {items.map((b, i) => (
-          <li key={i}>{renderInline(b)}</li>
+          <li key={i} className="leading-relaxed">
+            {renderInline(b)}
+          </li>
         ))}
       </ul>,
     );
@@ -50,8 +55,8 @@ export function ReportBody({ markdown }: { markdown: string }) {
           key={key}
           className={
             level <= 2
-              ? 'text-sm font-semibold text-neutral-100'
-              : 'text-sm font-medium text-neutral-200'
+              ? 'text-sm font-semibold tracking-tight text-neutral-100'
+              : 'text-sm font-medium tracking-tight text-neutral-200'
           }
         >
           {renderInline(heading[2])}
@@ -68,7 +73,7 @@ export function ReportBody({ markdown }: { markdown: string }) {
 
     flushBullets(`${key}-flush`);
     blocks.push(
-      <p key={key} className="text-sm text-neutral-200">
+      <p key={key} className="text-sm leading-relaxed text-neutral-200">
         {renderInline(line)}
       </p>,
     );
@@ -76,7 +81,7 @@ export function ReportBody({ markdown }: { markdown: string }) {
 
   flushBullets('tail-flush');
 
-  return <div className="space-y-3">{blocks}</div>;
+  return <div className="space-y-3 tabular-nums">{blocks}</div>;
 }
 
 /** Render inline **bold** segments; everything else stays literal text. */

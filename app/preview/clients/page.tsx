@@ -359,84 +359,88 @@ export default function PreviewClientsPage() {
       {!isEmpty && (
         <ul className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {store.clients.map((c) => (
-            <li key={c.id}>
+            <li key={c.id} className="relative">
+              {/* client accent: hairline bar echoing CardTile / the clients list */}
+              <span
+                aria-hidden
+                className="absolute inset-y-4 left-4 z-10 w-[2.5px] rounded-full opacity-70"
+                style={{
+                  background: c.colors.primary,
+                  boxShadow: `0 0 12px ${c.colors.primary}66`,
+                }}
+              />
               <Panel
                 className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
                   c.id === editingId ? 'ring-1 ring-indigo-300/20' : ''
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      aria-hidden
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{
-                        background: c.colors.primary,
-                        boxShadow: `0 0 10px ${c.colors.primary}99`,
-                      }}
-                    />
-                    <h2 className="truncate text-sm font-semibold tracking-tight text-neutral-100">
+                <div className="pl-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="min-w-0 truncate text-sm font-semibold tracking-tight text-neutral-100">
                       {c.name}
                     </h2>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        onClick={() => openEdit(c.id)}
+                        aria-label={tr.common.edit}
+                        title={tr.common.edit}
+                        className={ICON_BTN}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={() => remove(c)}
+                        aria-label={tr.common.delete}
+                        title={tr.common.delete}
+                        className={`${ICON_BTN} hover:text-red-300`}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      onClick={() => openEdit(c.id)}
-                      aria-label={tr.common.edit}
-                      title={tr.common.edit}
-                      className={ICON_BTN}
-                    >
-                      ✎
-                    </button>
-                    <button
-                      onClick={() => remove(c)}
-                      aria-label={tr.common.delete}
-                      title={tr.common.delete}
-                      className={`${ICON_BTN} hover:text-red-300`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
 
-                {(c.industry || c.district) && (
-                  <p className="mt-2 text-xs text-neutral-500">
-                    {[c.industry, c.district].filter(Boolean).join(' · ')}
-                  </p>
-                )}
+                  {(c.industry || c.district) && (
+                    <p className="mt-2 text-xs text-neutral-500">
+                      {[c.industry, c.district].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
 
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {c.accounts.length === 0 ? (
-                    <button
-                      onClick={() => openEdit(c.id)}
-                      className="rounded-full border border-dashed border-white/15 px-2.5 py-0.5 text-[11px] font-medium text-neutral-500 transition-colors duration-300 hover:border-white/30 hover:text-neutral-300"
-                    >
-                      + {tr.demo.addAccount}
-                    </button>
-                  ) : (
-                    c.accounts.map((a) => (
-                      <span key={`${a.platform}-${a.handle}`} className={CHIP}>
-                        {tr.platforms[a.platform]}
-                        <span className="font-mono text-neutral-100">
-                          @{a.handle}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {c.accounts.length === 0 ? (
+                      <button
+                        onClick={() => openEdit(c.id)}
+                        className="rounded-full border border-dashed border-white/15 px-2.5 py-0.5 text-[11px] font-medium text-neutral-500 transition-colors duration-300 hover:border-white/30 hover:text-neutral-300"
+                      >
+                        + {tr.demo.addAccount}
+                      </button>
+                    ) : (
+                      c.accounts.map((a) => (
+                        <span
+                          key={`${a.platform}-${a.handle}`}
+                          className={CHIP}
+                        >
+                          {tr.platforms[a.platform]}
+                          <span className="font-mono text-neutral-100">
+                            @{a.handle}
+                          </span>
                         </span>
-                      </span>
-                    ))
+                      ))
+                    )}
+                  </div>
+
+                  {c.langs.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {c.langs.map((l) => (
+                        <span
+                          key={l}
+                          className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-300"
+                        >
+                          {l}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
-
-                {c.langs.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {c.langs.map((l) => (
-                      <span
-                        key={l}
-                        className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-300"
-                      >
-                        {l}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </Panel>
             </li>
           ))}

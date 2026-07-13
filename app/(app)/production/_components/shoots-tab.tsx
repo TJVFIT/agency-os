@@ -18,18 +18,33 @@ import type {
   VehicleRow,
 } from './types';
 
-const STATUS_CHIP: Record<Shoot['status'], string> = {
-  planned: 'bg-neutral-800 text-neutral-300',
-  confirmed: 'bg-sky-950 text-sky-300',
-  done: 'bg-emerald-950 text-emerald-300',
-  cancelled: 'bg-red-950 text-red-300',
+/** Tinted glass chips matching the pipeline StatusBadge convention. */
+const STATUS_CHIP: Record<Shoot['status'], { chip: string; dot: string }> = {
+  planned: {
+    chip: 'border-white/10 bg-white/[0.05] text-neutral-300',
+    dot: 'bg-neutral-400',
+  },
+  confirmed: {
+    chip: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
+    dot: 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]',
+  },
+  done: {
+    chip: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+    dot: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]',
+  },
+  cancelled: {
+    chip: 'border-red-400/20 bg-red-400/10 text-red-200',
+    dot: 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]',
+  },
 };
 
 function ShootStatusChip({ status }: { status: Shoot['status'] }) {
+  const c = STATUS_CHIP[status];
   return (
     <span
-      className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${STATUS_CHIP[status]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${c.chip}`}
     >
+      <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
       {tr.production.statuses[status]}
     </span>
   );
@@ -92,7 +107,7 @@ export function ShootsTab({
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-neutral-500">
             {tr.production.defaultBlock}
           </p>
@@ -104,21 +119,21 @@ export function ShootsTab({
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         {days.length === 0 && (
-          <Panel>
+          <Panel className="animate-enter">
             <p className="text-sm text-neutral-500">{tr.production.noShoots}</p>
           </Panel>
         )}
 
         {days.map(([day, dayShoots]) => (
-          <section key={day}>
-            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <section key={day} className="animate-enter">
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">
               {fmtIstanbul(dayShoots[0].starts_at, 'd MMM yyyy')}
             </h3>
-            <ul className="space-y-1.5">
+            <ul className="stagger-children space-y-1.5">
               {dayShoots.map((shoot) => (
                 <li
                   key={shoot.id}
-                  className="rounded-lg border border-neutral-800 bg-neutral-900/50 px-3 py-2"
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.10] hover:bg-white/[0.05]"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs text-neutral-400">
@@ -134,7 +149,7 @@ export function ShootsTab({
                     <ShootStatusChip status={shoot.status} />
                     {shoot.tasks_opened && (
                       <span
-                        className="text-xs text-emerald-500"
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300"
                         title={tr.production.tasksOpened}
                       >
                         ✓ {tr.production.tasksOpened}
@@ -161,7 +176,7 @@ export function ShootsTab({
                         variant="secondary"
                         disabled={pending}
                         onClick={() => onTransition(shoot.id, 'confirmed')}
-                        className="px-2 py-1 text-xs"
+                        className="px-2.5 py-1 text-xs"
                       >
                         {tr.production.confirm}
                       </Button>
@@ -171,7 +186,7 @@ export function ShootsTab({
                         variant="secondary"
                         disabled={pending}
                         onClick={() => onTransition(shoot.id, 'done')}
-                        className="px-2 py-1 text-xs"
+                        className="px-2.5 py-1 text-xs"
                       >
                         {tr.production.markDone}
                       </Button>
@@ -183,7 +198,7 @@ export function ShootsTab({
                           variant="ghost"
                           disabled={pending}
                           onClick={() => setEditing(shoot)}
-                          className="px-2 py-1 text-xs"
+                          className="px-2.5 py-1 text-xs"
                         >
                           {tr.common.edit}
                         </Button>
@@ -191,7 +206,7 @@ export function ShootsTab({
                           variant="danger"
                           disabled={pending}
                           onClick={() => onTransition(shoot.id, 'cancelled')}
-                          className="px-2 py-1 text-xs"
+                          className="px-2.5 py-1 text-xs"
                         >
                           {tr.common.cancel}
                         </Button>

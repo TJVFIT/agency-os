@@ -104,7 +104,7 @@ export default async function SettingsPage() {
     <div className="p-4 md:p-6">
       <PageHeader title={tr.settings.title} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="stagger-children grid gap-4 lg:grid-cols-2">
         <Panel title={tr.settings.profile}>
           <ProfileForm fullName={session.profile.full_name ?? ''} />
           {/* Renders nothing when NEXT_PUBLIC_VAPID_PUBLIC_KEY is unset. */}
@@ -118,11 +118,11 @@ export default async function SettingsPage() {
         <Panel title={tr.settings.providerHealth} className="lg:col-span-2">
           <div className="flex flex-col gap-4">
             <div>
-              <div className="mb-2 text-xs text-neutral-500">
+              <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
                 {tr.settings.queueDepth}
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold text-neutral-100">
+                <span className="text-2xl font-semibold tracking-tight text-neutral-50">
                   {queuedDepth}
                 </span>
                 <span className="text-xs text-neutral-500">
@@ -130,23 +130,23 @@ export default async function SettingsPage() {
                 </span>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="stagger-children grid grid-cols-2 gap-3 sm:grid-cols-4">
               {queueCounts.map((q) => (
                 <div
                   key={q.status}
-                  className="rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2"
+                  className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.16] hover:bg-white/[0.05]"
                 >
-                  <div className="text-lg font-semibold text-neutral-100">
+                  <div className="text-lg font-semibold tracking-tight text-neutral-50">
                     {q.count}
                   </div>
-                  <div className="text-xs capitalize text-neutral-500">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
                     {jobStatusLabel(q.status)}
                   </div>
                 </div>
               ))}
             </div>
             <div>
-              <div className="mb-1 text-xs text-neutral-500">
+              <div className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
                 {tr.settings.lastSuccess}
               </div>
               {providerLastSuccess.size === 0 ? (
@@ -154,9 +154,12 @@ export default async function SettingsPage() {
                   {lastSuccessAt ? fmtIstanbul(lastSuccessAt) : tr.common.none}
                 </p>
               ) : (
-                <ul className="space-y-0.5 text-xs text-neutral-400">
+                <ul className="space-y-1 text-xs text-neutral-400">
                   {[...providerLastSuccess.entries()].map(([provider, at]) => (
-                    <li key={provider} className="flex justify-between gap-3">
+                    <li
+                      key={provider}
+                      className="flex justify-between gap-3 border-b border-white/[0.04] pb-1 last:border-b-0 last:pb-0"
+                    >
                       <span className="font-mono text-neutral-300">
                         {provider}
                       </span>

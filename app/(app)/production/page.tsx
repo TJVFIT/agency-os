@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import { PageHeader } from '@/components/ui';
 import { getSessionProfile } from '@/lib/auth';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -7,6 +5,7 @@ import { tr } from '@/lib/i18n/tr';
 
 import { LeavesTab } from './_components/leaves-tab';
 import { ShootsTab } from './_components/shoots-tab';
+import { TabNav } from './_components/tab-nav';
 import { VehiclesTab } from './_components/vehicles-tab';
 import type { LeaveRow, ShootRow } from './_components/types';
 
@@ -73,43 +72,35 @@ export default async function ProductionPage({
 
   return (
     <div className="p-4 md:p-6">
-      <PageHeader title={tr.production.title} />
-
-      <nav className="mb-4 flex gap-1 border-b border-neutral-800">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/production?tab=${t.key}`}
-            className={`-mb-px border-b-2 px-3 py-1.5 text-sm font-medium transition-colors ${
-              tab === t.key
-                ? 'border-neutral-100 text-neutral-100'
-                : 'border-transparent text-neutral-500 hover:text-neutral-300'
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-
-      {tab === 'shoots' && (
-        <ShootsTab
-          shoots={shoots}
-          clients={clients}
-          profiles={profiles}
-          vehicles={vehicles}
+      <PageHeader title={tr.production.title}>
+        <TabNav
+          tabs={TABS}
+          active={tab}
+          hrefFor={(k) => `/production?tab=${k}`}
         />
-      )}
-      {tab === 'vehicles' && (
-        <VehiclesTab vehicles={vehicles} canManage={canManage} />
-      )}
-      {tab === 'leaves' && (
-        <LeavesTab
-          leaves={leaves}
-          profiles={profiles}
-          userId={session?.userId ?? ''}
-          canManage={canManage}
-        />
-      )}
+      </PageHeader>
+
+      <div key={tab} className="animate-enter">
+        {tab === 'shoots' && (
+          <ShootsTab
+            shoots={shoots}
+            clients={clients}
+            profiles={profiles}
+            vehicles={vehicles}
+          />
+        )}
+        {tab === 'vehicles' && (
+          <VehiclesTab vehicles={vehicles} canManage={canManage} />
+        )}
+        {tab === 'leaves' && (
+          <LeavesTab
+            leaves={leaves}
+            profiles={profiles}
+            userId={session?.userId ?? ''}
+            canManage={canManage}
+          />
+        )}
+      </div>
     </div>
   );
 }

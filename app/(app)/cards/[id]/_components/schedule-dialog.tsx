@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { Button } from '@/components/ui';
+import { Button, Field, Input } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import { istanbulToUtc } from '@/lib/dates';
 import { tr } from '@/lib/i18n/tr';
@@ -78,24 +78,23 @@ export function ScheduleDialog({
   return (
     <Dialog open={open} onClose={onClose} title={tr.card.scheduleTitle}>
       <div className="space-y-4">
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
-            {tr.card.scheduledAt}
-          </span>
-          <input
+        <Field label={tr.card.scheduledAt}>
+          <Input
             type="datetime-local"
             value={local}
             onChange={(e) => setLocal(e.target.value)}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-400 [color-scheme:dark]"
+            className="[color-scheme:dark]"
           />
-        </label>
+        </Field>
 
         <div>
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
+          <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
             {tr.card.platforms}
           </span>
           {available.length === 0 ? (
-            <p className="text-xs text-neutral-600">{tr.common.none}</p>
+            <p className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
+              {tr.common.none}
+            </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {available.map((p) => {
@@ -105,10 +104,10 @@ export function ScheduleDialog({
                     key={p}
                     type="button"
                     onClick={() => toggle(p)}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
                       on
-                        ? 'border-neutral-300 bg-neutral-800 text-neutral-100'
-                        : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-600'
+                        ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200 shadow-[0_0_0_3px_rgba(129,140,248,0.12)]'
+                        : 'border-white/10 bg-white/[0.03] text-neutral-400 hover:border-white/20 hover:bg-white/[0.06] hover:text-neutral-200'
                     }`}
                   >
                     {on ? '✓ ' : ''}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
-import { Button, Field, Input, Panel } from '@/components/ui';
+import { Button, Field, Input, Label, Panel } from '@/components/ui';
 import { updateClientAction } from '@/lib/actions/clients';
 import type { ClientColors } from '@/lib/db/domain';
 import { tr } from '@/lib/i18n/tr';
@@ -99,19 +99,17 @@ export function ClientSettingsEditor({
         </Field>
 
         <div>
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
-            {tr.clients.langs}
-          </span>
+          <Label>{tr.clients.langs}</Label>
           <div className="flex gap-2">
             {LANGS.map((l) => (
               <button
                 key={l}
                 type="button"
                 onClick={() => toggleLang(l)}
-                className={`rounded-md border px-3 py-1.5 text-sm uppercase transition-colors ${
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium uppercase transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
                   langs.includes(l)
-                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                    : 'border-neutral-700 bg-neutral-950 text-neutral-500'
+                    ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200'
+                    : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/20'
                 }`}
               >
                 {l}
@@ -122,16 +120,16 @@ export function ClientSettingsEditor({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <span className="mb-1 block text-xs font-medium text-neutral-400">
-              {tr.clients.primaryColor}
-            </span>
+            <Label>{tr.clients.primaryColor}</Label>
             <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={primary}
-                onChange={(e) => setPrimary(e.target.value)}
-                className="h-8 w-10 cursor-pointer rounded border border-neutral-700 bg-neutral-950"
-              />
+              <span className="flex h-8 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+                <input
+                  type="color"
+                  value={primary}
+                  onChange={(e) => setPrimary(e.target.value)}
+                  className="h-9 w-11 cursor-pointer appearance-none border-none bg-transparent p-0 [&::-moz-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
+                />
+              </span>
               <Input
                 value={primary}
                 onChange={(e) => setPrimary(e.target.value)}
@@ -140,16 +138,16 @@ export function ClientSettingsEditor({
             </div>
           </div>
           <div>
-            <span className="mb-1 block text-xs font-medium text-neutral-400">
-              {tr.clients.secondaryColor}
-            </span>
+            <Label>{tr.clients.secondaryColor}</Label>
             <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={secondary}
-                onChange={(e) => setSecondary(e.target.value)}
-                className="h-8 w-10 cursor-pointer rounded border border-neutral-700 bg-neutral-950"
-              />
+              <span className="flex h-8 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+                <input
+                  type="color"
+                  value={secondary}
+                  onChange={(e) => setSecondary(e.target.value)}
+                  className="h-9 w-11 cursor-pointer appearance-none border-none bg-transparent p-0 [&::-moz-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
+                />
+              </span>
               <Input
                 value={secondary}
                 onChange={(e) => setSecondary(e.target.value)}
@@ -164,7 +162,7 @@ export function ClientSettingsEditor({
             type="checkbox"
             checked={active}
             onChange={(e) => setActive(e.target.checked)}
-            className="h-4 w-4 rounded border-neutral-700 bg-neutral-950 accent-neutral-200"
+            className="h-4 w-4 rounded border-white/15 bg-white/[0.03] accent-neutral-200"
           />
           <span className="text-sm text-neutral-200">{tr.clients.active}</span>
         </label>

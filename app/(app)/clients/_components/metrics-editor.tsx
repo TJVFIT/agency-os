@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 
-import { Button, Input, Panel } from '@/components/ui';
+import { Button, Input, Label, Panel } from '@/components/ui';
 import { saveReportMetrics } from '@/lib/actions/reports';
 import type { Report } from '@/lib/db/types';
 import { istanbulDateString, istanbulWeekStart } from '@/lib/dates';
@@ -91,9 +91,7 @@ export function MetricsEditor({
         {/* Entry */}
         <div className="space-y-3">
           <div>
-            <span className="mb-1 block text-xs font-medium text-neutral-400">
-              {tr.clients.metricsEntry}
-            </span>
+            <Label>{tr.clients.metricsEntry}</Label>
             <Input
               type="date"
               value={weekStart}
@@ -152,9 +150,7 @@ export function MetricsEditor({
 
         {/* History */}
         <div>
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
-            {tr.clients.reportsHistory}
-          </span>
+          <Label>{tr.clients.reportsHistory}</Label>
           {reports.length === 0 ? (
             <p className="text-xs text-neutral-500">{tr.clients.noReports}</p>
           ) : (
@@ -162,7 +158,7 @@ export function MetricsEditor({
               {reports.map((r) => (
                 <li
                   key={r.id}
-                  className="rounded-md border border-neutral-800 bg-neutral-950 p-2.5"
+                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5"
                 >
                   <div className="mb-1 font-mono text-xs text-neutral-400">
                     {r.week_start}
@@ -172,7 +168,7 @@ export function MetricsEditor({
                       {metricsToRows(r.metrics).map((m) => (
                         <span
                           key={m.key}
-                          className="rounded bg-neutral-800 px-1.5 py-0.5 text-[11px] text-neutral-300"
+                          className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-neutral-300"
                         >
                           {m.key}: {m.value}
                         </span>

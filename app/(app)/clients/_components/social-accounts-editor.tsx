@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
-import { Button, Input, Panel, Select } from '@/components/ui';
+import { Button, Input, Label, Panel, Select } from '@/components/ui';
 import {
   addSocialAccountAction,
   removeSocialAccountAction,
@@ -70,10 +70,10 @@ export function SocialAccountsEditor({
             {accounts.map((a) => (
               <li
                 key={a.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-neutral-800 bg-neutral-950 px-2 py-1.5"
+                className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[11px] text-neutral-300">
+                  <span className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-neutral-300">
                     {tr.platforms[a.platform as Platform] ?? a.platform}
                   </span>
                   <span className="truncate text-sm text-neutral-200">
@@ -99,9 +99,7 @@ export function SocialAccountsEditor({
         {canManage && (
           <div className="flex items-end gap-2">
             <div className="flex-1">
-              <span className="mb-1 block text-xs font-medium text-neutral-400">
-                {tr.clients.platform}
-              </span>
+              <Label>{tr.clients.platform}</Label>
               <Select
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value as Platform)}
@@ -115,9 +113,7 @@ export function SocialAccountsEditor({
               </Select>
             </div>
             <div className="flex-1">
-              <span className="mb-1 block text-xs font-medium text-neutral-400">
-                {tr.clients.handle}
-              </span>
+              <Label>{tr.clients.handle}</Label>
               <Input
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}

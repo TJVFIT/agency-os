@@ -35,10 +35,12 @@ export default async function ClientDetailPage({
   if (!client) {
     return (
       <div className="p-4 md:p-6">
-        <p className="text-sm text-neutral-400">{tr.errors.clientNotFound}</p>
+        <p className="animate-enter text-sm text-neutral-400">
+          {tr.errors.clientNotFound}
+        </p>
         <Link
           href="/clients"
-          className="mt-2 inline-block text-sm text-sky-400 hover:underline"
+          className="mt-2 inline-block text-sm text-indigo-300 transition-colors duration-300 hover:text-indigo-200 hover:underline"
         >
           {tr.clients.title}
         </Link>
@@ -68,15 +70,17 @@ export default async function ClientDetailPage({
       <PageHeader title={client.name}>
         <Link
           href="/clients"
-          className="text-sm text-neutral-400 hover:text-neutral-200"
+          className="text-sm text-neutral-400 transition-colors duration-300 hover:text-neutral-200"
         >
           ← {tr.clients.title}
         </Link>
       </PageHeader>
 
-      <p className="mb-4 font-mono text-xs text-neutral-500">{client.slug}</p>
+      <p className="animate-enter mb-4 font-mono text-xs text-neutral-500">
+        {client.slug}
+      </p>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="stagger-children grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ClientSettingsEditor
           clientId={client.id}
           name={client.name}
@@ -108,7 +112,7 @@ export default async function ClientDetailPage({
       </div>
 
       {isAdmin && (
-        <div className="mt-6 border-t border-neutral-800 pt-4">
+        <div className="mt-6 border-t border-white/[0.06] pt-4">
           <DeleteClientButton clientId={client.id} />
         </div>
       )}

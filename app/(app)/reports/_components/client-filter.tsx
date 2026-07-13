@@ -31,6 +31,7 @@ export function ClientFilter({
       value={current}
       onChange={(e) => onChange(e.target.value)}
       aria-label={tr.card.client}
+      className="min-w-[168px]"
     >
       <option value="">{tr.common.all}</option>
       {clients.map((c) => (

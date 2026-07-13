@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { Button, Field, Input, Select } from '@/components/ui';
+import { Button, Field, Input, Label, Select } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import {
   createPackage,
@@ -151,13 +151,11 @@ export function PackageDialog({
             />
           </Field>
           <div>
-            <span className="mb-1 block text-xs font-medium text-neutral-400">
-              {tr.finance.quota}
-            </span>
+            <Label>{tr.finance.quota}</Label>
             <div className="grid grid-cols-2 gap-2">
               {QUOTA_FIELDS.map((f) => (
                 <label key={f.key} className="block">
-                  <span className="mb-0.5 block text-[11px] text-neutral-500">
+                  <span className="mb-0.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
                     {f.label}
                   </span>
                   <Input
@@ -165,12 +163,13 @@ export function PackageDialog({
                     min={0}
                     value={quota[f.key]}
                     onChange={(e) => setQuotaField(f.key, e.target.value)}
+                    className="tabular-nums"
                   />
                 </label>
               ))}
             </div>
           </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-300">{error}</p>}
           <div className="flex items-center justify-between gap-2 pt-1">
             <div>
               {pkg?.active && (

@@ -48,17 +48,19 @@ export default async function ReportsPage({
       </PageHeader>
 
       {reports.length === 0 ? (
-        <p className="rounded-xl border border-neutral-800 bg-neutral-900/50 px-4 py-8 text-center text-sm text-neutral-400">
-          {tr.reports.empty}
-        </p>
+        <Panel className="animate-enter">
+          <p className="py-6 text-center text-sm text-neutral-500">
+            {tr.reports.empty}
+          </p>
+        </Panel>
       ) : (
-        <div className="space-y-4">
+        <div className="stagger-children space-y-4">
           {reports.map((r) => (
             <Panel
               key={r.id}
               title={r.clients?.name ?? tr.common.unknown}
               actions={
-                <span className="text-xs text-neutral-400">
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium tabular-nums text-neutral-400">
                   {interpolate(tr.reports.weekOf, {
                     date: fmtIstanbulDate(r.week_start),
                   })}

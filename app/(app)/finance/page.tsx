@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { PageHeader, Panel } from '@/components/ui';
+import { Label, PageHeader, Panel } from '@/components/ui';
 import { getSessionProfile } from '@/lib/auth';
 import { fmtIstanbulDate, istanbulDateString } from '@/lib/dates';
 import { listClients } from '@/lib/db/queries';
@@ -23,6 +23,7 @@ import { tr } from '@/lib/i18n/tr';
 
 import { AdDialog } from './_components/ad-dialog';
 import { AdsBoard, type AdRow } from './_components/ads-board';
+import { GlassChip } from './_components/glass-chip';
 import { PackageDialog } from './_components/package-dialog';
 import { PaymentDialog } from './_components/payment-dialog';
 import { PaymentsTable, type PaymentRow } from './_components/payments-table';
@@ -122,15 +123,20 @@ export default async function FinancePage({
         {isManager && tab === 'ads' && <AdDialog clients={clientOptions} />}
       </PageHeader>
 
-      <nav className="mb-4 flex gap-1 border-b border-neutral-800">
+      <nav
+        role="tablist"
+        className="animate-enter mb-5 inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.03] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]"
+      >
         {TABS.map((t) => (
           <Link
             key={t.key}
             href={`/finance?tab=${t.key}`}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
               tab === t.key
-                ? 'border-neutral-100 font-medium text-neutral-100'
-                : 'border-transparent text-neutral-500 hover:text-neutral-300'
+                ? 'bg-white/[0.10] text-neutral-50 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                : 'text-neutral-500 hover:text-neutral-200'
             }`}
           >
             {t.label}
@@ -139,7 +145,7 @@ export default async function FinancePage({
       </nav>
 
       {tab === 'packages' && (
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <section className="stagger-children grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {packages.length === 0 && (
             <p className="text-sm text-neutral-500">{tr.common.none}</p>
           )}
@@ -157,9 +163,9 @@ export default async function FinancePage({
                   isManager ? (
                     <div className="flex items-center gap-2">
                       {!pkg.active && (
-                        <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">
+                        <GlassChip tone="neutral">
                           {tr.clients.inactive}
-                        </span>
+                        </GlassChip>
                       )}
                       <PackageDialog
                         clients={clientOptions}
@@ -182,15 +188,13 @@ export default async function FinancePage({
                 }
                 className={pkg.active ? '' : 'opacity-60'}
               >
-                <p className="mb-3 text-sm font-medium text-neutral-100">
+                <p className="mb-3 font-mono text-sm font-medium tabular-nums text-neutral-100">
                   {fmtMoney(pkg.price, pkg.currency)}
-                  <span className="ml-1 text-xs font-normal text-neutral-500">
+                  <span className="ml-1 font-sans text-xs font-normal text-neutral-500">
                     / {tr.common.month}
                   </span>
                 </p>
-                <div className="mb-1 text-xs font-medium text-neutral-400">
-                  {tr.finance.quotaUsage}
-                </div>
+                <Label>{tr.finance.quotaUsage}</Label>
                 <QuotaBars
                   items={QUOTA_TYPES.map((t) => ({
                     key: t,
@@ -212,7 +216,7 @@ export default async function FinancePage({
 
       {tab === 'ads' && (
         <section>
-          <p className="mb-4 rounded-md border border-sky-900/60 bg-sky-950/40 px-3 py-2 text-sm text-sky-200">
+          <p className="animate-enter mb-4 rounded-xl border border-sky-400/20 bg-sky-400/[0.07] px-3.5 py-2.5 text-sm leading-relaxed text-sky-200/90">
             {tr.finance.apiNote}
           </p>
           <AdsBoard ads={adRows} isManager={isManager} />

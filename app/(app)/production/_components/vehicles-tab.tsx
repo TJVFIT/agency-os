@@ -79,7 +79,7 @@ export function VehiclesTab({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-neutral-800 text-xs text-neutral-500">
+              <tr className="border-b border-white/[0.06] text-xs text-neutral-500">
                 <th className="py-1.5 pr-3 font-medium">{tr.clients.name}</th>
                 <th className="py-1.5 pr-3 font-medium">
                   {tr.production.plate}
@@ -91,40 +91,45 @@ export function VehiclesTab({
                 {canManage && <th className="py-1.5" />}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="stagger-children">
               {vehicles.map((vehicle) => (
                 <tr
                   key={vehicle.id}
-                  className="border-b border-neutral-900 last:border-0"
+                  className="border-b border-white/[0.04] transition-colors duration-300 last:border-0 hover:bg-white/[0.03]"
                 >
-                  <td className="py-1.5 pr-3 text-neutral-100">
-                    {vehicle.name}
-                  </td>
-                  <td className="py-1.5 pr-3 font-mono text-xs text-neutral-400">
+                  <td className="py-2 pr-3 text-neutral-100">{vehicle.name}</td>
+                  <td className="py-2 pr-3 font-mono text-xs text-neutral-400">
                     {vehicle.plate || '—'}
                   </td>
-                  <td className="py-1.5 pr-3 text-neutral-300">
+                  <td className="py-2 pr-3 text-neutral-300">
                     {vehicle.capacity}
                   </td>
-                  <td className="py-1.5 pr-3">
+                  <td className="py-2 pr-3">
                     <span
-                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
                         vehicle.active
-                          ? 'bg-emerald-950 text-emerald-300'
-                          : 'bg-neutral-900 text-neutral-500'
+                          ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                          : 'border-white/[0.06] bg-white/[0.02] text-neutral-600'
                       }`}
                     >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          vehicle.active
+                            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+                            : 'bg-neutral-600'
+                        }`}
+                      />
                       {vehicle.active ? tr.clients.active : tr.clients.inactive}
                     </span>
                   </td>
                   {canManage && (
-                    <td className="py-1.5 text-right">
+                    <td className="py-2 text-right">
                       <div className="flex justify-end gap-1.5">
                         <Button
                           variant="ghost"
                           disabled={pending}
                           onClick={() => setDialog(vehicle)}
-                          className="px-2 py-1 text-xs"
+                          className="px-2.5 py-1 text-xs"
                         >
                           {tr.common.edit}
                         </Button>
@@ -132,7 +137,7 @@ export function VehiclesTab({
                           variant={vehicle.active ? 'danger' : 'secondary'}
                           disabled={pending}
                           onClick={() => onToggleActive(vehicle)}
-                          className="px-2 py-1 text-xs"
+                          className="px-2.5 py-1 text-xs"
                         >
                           {vehicle.active
                             ? tr.clients.inactive

@@ -53,13 +53,19 @@ export function WorkerStatus({
   const alive = lastBeat !== null && now - lastBeat < DEAD_AFTER_MS;
 
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span
-        className={`h-2 w-2 shrink-0 rounded-full ${
-          alive ? 'bg-emerald-500' : 'bg-red-500'
-        }`}
-        aria-hidden
-      />
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+        {alive && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+        )}
+        <span
+          className={`relative inline-flex h-2 w-2 rounded-full ${
+            alive
+              ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]'
+              : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]'
+          }`}
+        />
+      </span>
       {alive ? (
         <span className="text-neutral-300">
           {tr.dashboard.workerAlive}

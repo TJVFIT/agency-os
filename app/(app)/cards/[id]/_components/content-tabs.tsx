@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
-import { Button, Panel, Textarea } from '@/components/ui';
+import { Button, Label, Panel, Textarea } from '@/components/ui';
 import { upsertCardContent } from '@/lib/actions/contents';
 import { tr } from '@/lib/i18n/tr';
 import type { CardContent } from '@/lib/db/types';
@@ -146,16 +146,16 @@ export function ContentTabs({
   return (
     <Panel title={tr.card.caption}>
       {tabs.length > 1 && (
-        <div className="mb-3 flex gap-1">
+        <div className="mb-4 inline-flex gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1">
           {tabs.map((l) => (
             <button
               key={l}
               type="button"
               onClick={() => setActive(l)}
-              className={`rounded-md px-3 py-1 text-xs font-medium uppercase transition-colors ${
+              className={`rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-wide transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
                 l === active
-                  ? 'bg-neutral-100 text-neutral-950'
-                  : 'text-neutral-400 hover:bg-neutral-800'
+                  ? 'bg-neutral-50 text-neutral-950 shadow-[0_2px_8px_rgba(255,255,255,0.12)]'
+                  : 'text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-200'
               }`}
             >
               {l}
@@ -168,11 +168,9 @@ export function ContentTabs({
         if (l !== active) return null;
         const d = drafts[l];
         return (
-          <div key={l} className="space-y-3">
+          <div key={l} className="space-y-4">
             <div>
-              <span className="mb-1 block text-xs font-medium text-neutral-400">
-                {tr.card.caption}
-              </span>
+              <Label>{tr.card.caption}</Label>
               <Textarea
                 rows={6}
                 value={d.caption}
@@ -186,9 +184,7 @@ export function ContentTabs({
             </div>
 
             <div>
-              <span className="mb-1 block text-xs font-medium text-neutral-400">
-                {tr.card.hashtags}
-              </span>
+              <Label>{tr.card.hashtags}</Label>
               <Textarea
                 rows={2}
                 value={d.hashtags}
@@ -203,10 +199,10 @@ export function ContentTabs({
               onChange={(ids) => patch(l, { mediaAssetIds: ids })}
             />
 
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-3 border-t border-white/[0.06] pt-3">
               {savedLang === l && (
                 <span className="text-xs text-emerald-400">
-                  {tr.common.saved}
+                  ✓ {tr.common.saved}
                 </span>
               )}
               <Button

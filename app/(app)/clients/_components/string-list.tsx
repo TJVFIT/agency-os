@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { Button, Input, Textarea } from '@/components/ui';
+import { Button, Input, Label, Textarea } from '@/components/ui';
 import { tr } from '@/lib/i18n/tr';
 
 /** Editable add/remove list of plain strings (tone rules, banned words, …). */
@@ -30,15 +30,13 @@ export function StringList({
 
   return (
     <div>
-      <span className="mb-1 block text-xs font-medium text-neutral-400">
-        {label}
-      </span>
+      <Label>{label}</Label>
       {items.length > 0 && (
         <ul className="mb-2 space-y-1">
           {items.map((item, i) => (
             <li
               key={i}
-              className="flex items-start gap-2 rounded-md border border-neutral-800 bg-neutral-950 px-2 py-1.5"
+              className="flex items-start gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5"
             >
               <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm text-neutral-200">
                 {item}
