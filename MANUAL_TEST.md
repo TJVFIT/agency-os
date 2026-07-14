@@ -96,12 +96,40 @@ Open http://localhost:3000 → redirected to /login → sign in.
 22. **Daily plan**: run the 08:00 cron → every staff member with due work
     gets a Telegram/push digest; dashboard "Bugünün planı" matches it.
 
+## v3 — client collaboration + AI edit (UPGRADE_SPEC.md §11a, migration 0009)
+
+23. **Messages**: /portal/{token} → Mesajlar → send a message → managers get
+    a Telegram/push ping; /clients/[id] Mesajlar panel shows it live
+    (realtime) and the dashboard "Yeni müşteri mesajları" count appears.
+    Reply as team → the portal thread shows it within ~15s (poll) and the
+    unread badge on the portal tab clears when opened.
+24. **Client upload**: portal → Yükle → send a photo and a video (≤10MB /
+    ≤200MB) → both appear under "Gönderdikleriniz"; /assets shows them with
+    the "Müşteri" source badge; the image gets variants within a minute;
+    managers get a "Müşteri yeni görsel yükledi" ping.
+25. **Client info**: portal → Bilgiler → fill phone/address/hours → save →
+    /clients/[id] "İşletme bilgileri" card shows the values and the feed
+    logs "Müşteri işletme bilgilerini güncelledi".
+26. **Pipeline view**: portal → Durum → the client's cards appear grouped
+    by status with scheduled dates; no other client's cards are visible.
+27. **AI video edit**: portal → AI Editör → pick an uploaded video, prompt
+    "ilk 3 saniyeyi kes, altyazı ekle" → "İşleniyor" → result video plays
+    inline with the AI note; a new 'render' asset appears in /assets; the
+    LLM spec is in ai_jobs.result. Same flow from /assets "AI Düzenle".
+28. **AI photo edit**: portal → AI Editör → Fotoğraf düzenleme → pick an
+    image, prompt "kare yap, parlaklığı artır, üstüne 'Kampanya' yaz" →
+    result shows the crop + overlay; variants job runs for the new asset.
+29. **Scoping**: try fetchPortalEditJob with another client's job id (or a
+    portal token of client B on client A's asset) → rejected; portal upload
+    complete with a foreign key path → "invalid_key".
+
 ## Automated checks
 
 ```bash
 pnpm typecheck   # app + worker
 pnpm lint
 pnpm test        # status machine, AI router/bucket/prompts, ASS generator,
-                 # scheduling engine, compliance gate, automation modes
+                 # scheduling engine, compliance gate, automation modes,
+                 # edit-spec compilers (FFmpeg graph / sharp ops)
 pnpm build
 ```

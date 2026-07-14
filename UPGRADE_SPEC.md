@@ -141,17 +141,32 @@ report roll-up (§7).
   (Postiz analytics — Phase 5). Multi-language UI (en.ts shape ready).
   Route optimization beyond nearest-neighbor.
 
-## 11a. NEXT UP (planned with the user, NOT built yet — v3)
+## 11a. v3 — client collaboration + AI editing (BUILT, migration 0009)
 
-**AI video/photo editing on demand.** The client writes a prompt and uploads
-raw footage/photos; the agency AI returns a fully edited, ready-to-post
-video. Build on what exists: R2 upload flow (§7.1-v1), `render_reel`
-pipeline (whisper + ASS + FFmpeg), `poster` image handler. New pieces:
-`edit_video` ai_job kind — LLM turns the prompt into a structured edit spec
-(cuts, order, text overlays, music bed, aspect) validated by zod → worker
-compiles the spec into an FFmpeg filter graph; photo edits reuse sharp +
-Gemini image editing. Portal gains an "Editle" tab (prompt + upload).
-Scheduled for the next working session.
+**Shipped 2026-07-14.** What the plan below became:
+
+- **AI video/photo editing on demand** — `edit_video` / `edit_photo`
+  ai_job kinds. The LLM turns the free-text request into a zod-validated
+  edit spec (lib/ai/schemas.ts); pure compilers (worker/lib/edit-video.ts,
+  edit-photo.ts — unit-tested) build the FFmpeg filter graph / sharp op
+  list; handlers (worker/src/handlers/edit.ts) render, upload to R2 and
+  insert a new `source='render'` asset. Video: trim/reorder/repeat clips,
+  aspect (9:16 / 1:1 / 16:9), speed, mute, karaoke subtitles (whisper +
+  ASS, reused from reels), text overlays. Photo: crop presets, rotate,
+  brightness/saturation/hue, grayscale, sharpen, SVG text overlay; the
+  result auto-enqueues `image_variants`. _Deviation from the sketch: no
+  music bed (no free licensed source) and no Gemini image editing (spec
+  ops cover the requests); both can be added later._
+- **Portal "AI Editör" tab** — pick own uploads + prompt → job polling →
+  inline result preview. Team equivalent: "AI Düzenle" on any /assets card.
+- **Portal "Yükle" tab** — client uploads straight to R2 (presign → PUT →
+  complete, same caps/verification as the team flow), `source='client'`.
+- **Portal "Mesajlar" tab + team thread** — `client_messages` table
+  (immutability guard, activity trigger, realtime); /clients/[id] panel is
+  realtime, dashboard shows unread counts, managers get pinged.
+- **Portal "Durum" tab** — read-only pipeline grouped by status.
+- **Portal "Bilgiler" tab** — client maintains `clients.contact`
+  (clientContactSchema); shown read-only on the client page.
 
 ## 11. New env
 

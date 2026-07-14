@@ -1,6 +1,8 @@
 # CLIENT_READINESS — punch list to "client-ready"
 
-_Last updated: 2026-07-13_
+_Last updated: 2026-07-14 (v3: client collaboration + AI edit shipped —
+migration 0009, portal Mesajlar/Yükle/AI Editör/Durum/Bilgiler tabs, team
+thread + unread widget, edit_video/edit_photo pipeline)_
 
 The product is **built and the backend is live.** v1 spec + the client's 40-item
 upgrade doc are code-complete, 140 tests pass, and Supabase is LIVE (Frankfurt,
@@ -48,6 +50,9 @@ half — not new features.**
 
 ## Section 2 — Publishing to real client accounts (start early — calendar-bound)
 
+- [ ] **TikTok draft-vs-direct** (req 26) lives in Postiz's per-integration
+      TikTok settings (direct post / upload-as-draft), not in our payload —
+      pick it when connecting each TikTok account. No code needed.
 - [ ] **Postiz self-hosted + per-platform developer apps + Meta app review.**
       Deploy Postiz (its docker-compose), create the agency workspace, connect
       each client's Instagram / Facebook / TikTok. Requires your own Meta
@@ -94,6 +99,9 @@ Walkthrough: MANUAL_TEST.md._
 - [ ] **PWA + push + daily plan** — install app, "Bildirimleri aç", trigger a
       notification with the tab closed (needs VAPID keys — DEPLOY.md step 7);
       08:00 cron sends each staffer their digest. _(MANUAL_TEST §v2 steps 21–22)_
+- [ ] **v3 client collaboration** — portal messages/upload/AI edit/info flows
+      against the live worker + R2. _(MANUAL_TEST §v3 steps 23–29; needs
+      migration 0009 applied + worker running + AI keys + R2)_
 
 ---
 
