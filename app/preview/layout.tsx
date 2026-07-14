@@ -21,6 +21,7 @@ const DEMO_NAV = [
   { href: '/preview/finance', label: tr.nav.finance },
   { href: '/preview/portal', label: tr.portal.title },
   { href: '/preview/settings', label: tr.nav.settings },
+  { href: '/preview/ui-lab', label: 'Bileşenler' },
 ];
 
 export default function PreviewLayout({

@@ -18,6 +18,27 @@
   /* motion */
   --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+
+  /* shadcn-compatible semantic tokens — mapped to the Ethereal Glass palette so
+     the components/ui/* kit (21st.dev imports) inherits ONE color template:
+     OLED base, indigo accent, translucent glass surfaces, hairline borders. */
+  --card: rgba(255, 255, 255, 0.03);
+  --card-foreground: #ededed;
+  --popover: #0b0b0d;
+  --popover-foreground: #ededed;
+  --primary: #6366f1; /* indigo-500 — the single accent */
+  --primary-foreground: #ffffff;
+  --secondary: rgba(255, 255, 255, 0.055);
+  --secondary-foreground: #ededed;
+  --muted: rgba(255, 255, 255, 0.055);
+  --muted-foreground: #a1a1aa; /* neutral-400 */
+  --accent: rgba(129, 140, 248, 0.16);
+  --accent-foreground: #ededed;
+  --destructive: #f43f5e; /* rose-500 */
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.14);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: rgba(129, 140, 248, 0.6);
 }
 
 @theme inline {
@@ -27,6 +48,25 @@
   --font-mono: var(--font-geist-mono);
   --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+
+  /* semantic color utilities for the components/ui/* kit */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 body {
@@ -152,5 +192,53 @@ body > * {
   *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+/* ── card-fan-carousel geometry (components/ui/card-fan-carousel) ──────────
+   The 21st.dev component transforms `.fan-card` elements with GSAP but relies
+   on external CSS for their base size + the layout height. */
+.fan-layout {
+  position: relative;
+  width: 100%;
+  height: 22rem;
+}
+@media (min-width: 480px) {
+  .fan-layout {
+    height: 24rem;
+  }
+}
+@media (min-width: 768px) {
+  .fan-layout {
+    height: 28rem;
+  }
+}
+@media (min-width: 1024px) {
+  .fan-layout {
+    height: 32rem;
+  }
+}
+.fan-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 11rem;
+  height: 15.5rem;
+  margin-left: -5.5rem;
+  margin-top: -7.75rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #0a0a0b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+@media (min-width: 768px) {
+  .fan-card {
+    width: 13rem;
+    height: 18rem;
+    margin-left: -6.5rem;
+    margin-top: -9rem;
   }
 }
