@@ -7,6 +7,8 @@
 
 import {
   CAPTION_SYSTEM,
+  EDIT_PHOTO_SYSTEM,
+  EDIT_VIDEO_SYSTEM,
   IDEA_REFINE_SYSTEM,
   PLANNER_SYSTEM,
   POSTER_PROMPT,
@@ -19,11 +21,13 @@ import {
 import {
   captionResultSchema,
   ideaRefineResultSchema,
+  photoEditSpecSchema,
   plannerResultSchema,
   replyResultSchema,
   reportResultSchema,
   scenarioResultSchema,
   translateResultSchema,
+  videoEditSpecSchema,
 } from './schemas';
 import type { DraftingKind } from './providers';
 import type { ZodType } from 'zod';
@@ -160,6 +164,46 @@ export function buildScenarioPrompt(
     }),
     user: USER_NUDGE,
     schema: scenarioResultSchema,
+    chainKind: 'plan' as const,
+  };
+}
+
+/** Metadata the edit_video prompt shows the model, per source clip. */
+export interface EditClipMeta {
+  index: number;
+  duration_s: number;
+  width?: number;
+  height?: number;
+  has_audio: boolean;
+}
+
+export function buildVideoEditPrompt(
+  clips: EditClipMeta[],
+  request: string,
+) {
+  return {
+    system: renderPrompt(EDIT_VIDEO_SYSTEM, {
+      clips_json: JSON.stringify(clips),
+      request,
+    }),
+    user: USER_NUDGE,
+    schema: videoEditSpecSchema,
+    // Drafting-family chain (KEY_A) — 'plan' picks the same providers.
+    chainKind: 'plan' as const,
+  };
+}
+
+export function buildPhotoEditPrompt(
+  photo: { width?: number; height?: number },
+  request: string,
+) {
+  return {
+    system: renderPrompt(EDIT_PHOTO_SYSTEM, {
+      photo_json: JSON.stringify(photo),
+      request,
+    }),
+    user: USER_NUDGE,
+    schema: photoEditSpecSchema,
     chainKind: 'plan' as const,
   };
 }

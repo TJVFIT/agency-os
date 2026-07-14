@@ -24,6 +24,7 @@ import {
   handleScenario,
 } from './handlers/creative';
 import { handleBgRemove, handleImageVariants } from './handlers/media';
+import { handleEditPhoto, handleEditVideo } from './handlers/edit';
 import { handleRenderReel } from './handlers/reel';
 import { handlePublish } from './handlers/publish';
 
@@ -52,6 +53,8 @@ const HANDLERS: Record<Enums<'job_kind'>, Handler> = {
   scenario: handleScenario,
   poster: handlePoster,
   compliance: handleCompliance,
+  edit_video: handleEditVideo,
+  edit_photo: handleEditPhoto,
 };
 
 async function claimBatch(batch: number): Promise<AiJob[]> {

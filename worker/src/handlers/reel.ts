@@ -25,7 +25,8 @@ import { db, logActivity } from '../supabase';
 import { getObject, putObject, r2Configured } from '../r2';
 import { log } from '../log';
 
-function run(cmd: string, args: string[]): Promise<string> {
+/** Shared with handlers/edit.ts — spawn a CLI, resolve stdout or throw. */
+export function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, args);
     let stdout = '';
@@ -41,12 +42,14 @@ function run(cmd: string, args: string[]): Promise<string> {
   });
 }
 
-interface Probe {
+export interface Probe {
   durationS: number;
   hasAudio: boolean;
+  width?: number;
+  height?: number;
 }
 
-async function ffprobe(path: string): Promise<Probe> {
+export async function ffprobe(path: string): Promise<Probe> {
   const out = await run('ffprobe', [
     '-v',
     'quiet',
@@ -58,16 +61,19 @@ async function ffprobe(path: string): Promise<Probe> {
   ]);
   const json = JSON.parse(out) as {
     format?: { duration?: string };
-    streams?: Array<{ codec_type?: string }>;
+    streams?: Array<{ codec_type?: string; width?: number; height?: number }>;
   };
+  const video = (json.streams ?? []).find((s) => s.codec_type === 'video');
   return {
     durationS: Number(json.format?.duration ?? 0),
     hasAudio: (json.streams ?? []).some((s) => s.codec_type === 'audio'),
+    width: video?.width,
+    height: video?.height,
   };
 }
 
 /** faster-whisper CLI → word-level segments. Shape: [{word,start,end}]. */
-async function transcribe(path: string, model: string): Promise<Word[]> {
+export async function transcribe(path: string, model: string): Promise<Word[]> {
   const out = await run('faster-whisper-cli', [
     path,
     '--model',

@@ -75,6 +75,60 @@ export const scenarioResultSchema = z.object({
 });
 export type ScenarioResult = z.infer<typeof scenarioResultSchema>;
 
+/**
+ * edit_video LLM output (UPGRADE_SPEC §11a): a structured edit spec the
+ * worker compiles into an FFmpeg filter graph. Times are seconds. `source`
+ * indexes the job payload's asset list; overlay times refer to the FINAL
+ * (post-trim, post-speed) timeline.
+ */
+export const videoEditSpecSchema = z.object({
+  clips: z
+    .array(
+      z.object({
+        source: z.number().int().min(0),
+        start_s: z.number().min(0).nullable().default(null),
+        end_s: z.number().min(0).nullable().default(null),
+      }),
+    )
+    .min(1)
+    .max(12),
+  aspect: z.enum(['9:16', '1:1', '16:9']).default('9:16'),
+  speed: z.number().min(0.5).max(2).default(1),
+  mute: z.boolean().default(false),
+  subtitles: z.boolean().default(false),
+  overlays: z
+    .array(
+      z.object({
+        text: z.string().min(1).max(80),
+        start_s: z.number().min(0),
+        end_s: z.number().min(0),
+        position: z.enum(['top', 'center', 'bottom']).default('bottom'),
+      }),
+    )
+    .max(8)
+    .default([]),
+  note: z.string().default(''),
+});
+export type VideoEditSpec = z.infer<typeof videoEditSpecSchema>;
+
+/** edit_photo LLM output — compiled into a sharp pipeline by the worker. */
+export const photoEditSpecSchema = z.object({
+  crop: z.enum(['square', 'portrait', 'story', 'original']).default('original'),
+  rotate: z
+    .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+    .default(0),
+  brightness: z.number().min(0.4).max(1.6).default(1),
+  saturation: z.number().min(0).max(2).default(1),
+  hue: z.number().int().min(-180).max(180).default(0),
+  grayscale: z.boolean().default(false),
+  sharpen: z.boolean().default(false),
+  overlay_text: z.string().max(60).default(''),
+  overlay_position: z.enum(['top', 'center', 'bottom']).default('bottom'),
+  format: z.enum(['jpeg', 'png']).default('jpeg'),
+  note: z.string().default(''),
+});
+export type PhotoEditSpec = z.infer<typeof photoEditSpecSchema>;
+
 export const RESULT_SCHEMAS = {
   caption: captionResultSchema,
   translate: translateResultSchema,

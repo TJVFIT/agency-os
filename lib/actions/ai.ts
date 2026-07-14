@@ -49,6 +49,19 @@ const compliancePayload = z.object({
   card_id: z.uuid(),
 });
 
+// v3 edit kinds (UPGRADE_SPEC §11a) — handled in worker/src/handlers/edit.ts.
+const editVideoPayload = z.object({
+  client_id: z.uuid(),
+  asset_ids: z.array(z.uuid()).min(1).max(4),
+  prompt: z.string().min(1).max(1000),
+});
+
+const editPhotoPayload = z.object({
+  client_id: z.uuid(),
+  asset_id: z.uuid(),
+  prompt: z.string().min(1).max(1000),
+});
+
 const KIND_SCHEMAS = {
   caption: captionPayload,
   translate: translatePayload,
@@ -57,6 +70,8 @@ const KIND_SCHEMAS = {
   scenario: scenarioPayload,
   poster: posterPayload,
   compliance: compliancePayload,
+  edit_video: editVideoPayload,
+  edit_photo: editPhotoPayload,
 } as const;
 
 export type EnqueueableKind = keyof typeof KIND_SCHEMAS;
