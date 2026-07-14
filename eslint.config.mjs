@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     // Workspace extras:
     'supabase/**',
     'coverage/**',
+    // Tauri desktop shell (Rust + generated bundle artifacts) and the
+    // client distribution package are not part of the Next app's lint scope.
+    'desktop/**',
+    'dist-client/**',
   ]),
 ]);
 

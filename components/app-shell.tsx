@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { PwaInstall } from '@/components/pwa-install';
 import { tr } from '@/lib/i18n/tr';
 import type { Profile } from '@/lib/db/types';
 
@@ -81,6 +82,8 @@ export function AppShell({
           <p className="hidden px-2.5 text-[11px] uppercase tracking-[0.08em] text-neutral-600 md:block">
             {tr.roles[profile.role]}
           </p>
+          {/* Self-hides unless the browser offers an install prompt. */}
+          <PwaInstall className="mt-2.5 hidden md:inline-flex" />
           <form action={logout}>
             <button
               type="submit"

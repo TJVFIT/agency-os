@@ -453,6 +453,10 @@ export const tr = {
     denied: 'Bildirim izni reddedildi — tarayıcı ayarlarından açabilirsiniz',
   },
 
+  pwa: {
+    install: 'Uygulamayı Yükle',
+  },
+
   feed: {
     title: 'Canlı akış',
     empty: 'Henüz aktivite yok',
