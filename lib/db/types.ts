@@ -1497,6 +1497,7 @@ export type AdTask = Tables<'ad_tasks'>;
 export type AutomationSetting = Tables<'automation_settings'>;
 export type Suggestion = Tables<'suggestions'>;
 export type PushSubscription = Tables<'push_subscriptions'>;
+export type ClientMessage = Tables<'client_messages'>;
 
 export const PLATFORMS = [
   'instagram',

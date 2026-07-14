@@ -173,6 +173,7 @@ export const tr = {
 
   dashboard: {
     title: 'Panel',
+    clientMessages: 'Yeni müşteri mesajları',
     myQueue: 'Kuyruğum',
     myQueueEmpty: 'Süper! Bekleyen işin yok.',
     waitingOnYou: 'Seni bekliyor',
@@ -187,6 +188,14 @@ export const tr = {
   clients: {
     title: 'Müşteriler',
     newClient: 'Yeni müşteri',
+    messagesTitle: 'Müşteri mesajları',
+    messagesEmpty: 'Henüz mesaj yok.',
+    messagePlaceholder: 'Müşteriye mesaj yazın…',
+    teamLabel: 'Ekip',
+    clientLabel: 'Müşteri',
+    contactTitle: 'İşletme bilgileri (müşteri girer)',
+    contactEmpty: 'Müşteri henüz bilgi girmedi — portaldaki "Bilgiler" sekmesi.',
+    contactHint: 'Bu kart müşterinin portaldan girdiği bilgileri gösterir.',
     name: 'İsim',
     slug: 'Kısa ad (URL)',
     industry: 'Sektör',
@@ -237,6 +246,9 @@ export const tr = {
       render: 'Render',
       client: 'Müşteri',
     },
+    aiEdit: 'AI Düzenle',
+    aiEditPrompt: 'Ne yapılsın? (ör. "kare yap, parlaklığı artır, yazı ekle")',
+    aiEditQueued: 'AI düzenleme kuyruğa alındı — sonuç yeni medya olarak düşer.',
     variants: 'Boyutlar',
     variantNames: {
       square: 'Kare (1080×1080)',

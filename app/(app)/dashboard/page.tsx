@@ -42,8 +42,17 @@ export default async function DashboardPage() {
   const dayEnd = istanbulToUtc(`${todayStr}T23:59:59.999`).toISOString();
 
   const supabase = await createSupabaseServer();
-  const [queue, gaps, clients, profiles, activity, suggRes, dueRes, shootRes] =
-    await Promise.all([
+  const [
+    queue,
+    gaps,
+    clients,
+    profiles,
+    activity,
+    suggRes,
+    dueRes,
+    shootRes,
+    unreadRes,
+  ] = await Promise.all([
       myQueue(userId, role),
       gapRadar(),
       listClients({ activeOnly: true }),
@@ -74,6 +83,13 @@ export default async function DashboardPage() {
         .gte('starts_at', dayStart)
         .lte('starts_at', dayEnd)
         .order('starts_at', { ascending: true }),
+      // Unread client messages (v3) — grouped per client below.
+      supabase
+        .from('client_messages')
+        .select('client_id, clients(name)')
+        .eq('sender', 'client')
+        .eq('read_by_team', false)
+        .limit(200),
     ]);
 
   const suggestions: SuggestionItem[] = (
@@ -113,6 +129,20 @@ export default async function DashboardPage() {
   const lastHeartbeat =
     activity.find((row) => row.action === 'worker.heartbeat')?.created_at ??
     null;
+
+  // Unread client messages → one row per client with a count.
+  const unreadByClient = new Map<string, { name: string; count: number }>();
+  for (const row of (unreadRes.data ?? []) as unknown as Array<{
+    client_id: string;
+    clients: { name: string } | null;
+  }>) {
+    const entry = unreadByClient.get(row.client_id) ?? {
+      name: row.clients?.name ?? '?',
+      count: 0,
+    };
+    entry.count += 1;
+    unreadByClient.set(row.client_id, entry);
+  }
 
   return (
     <div className="p-4 md:p-6">
@@ -190,6 +220,28 @@ export default async function DashboardPage() {
             overdueBefore={dayStart}
           />
         </Panel>
+
+        {unreadByClient.size > 0 && (
+          <Panel title={tr.dashboard.clientMessages}>
+            <ul className="stagger-children space-y-2">
+              {[...unreadByClient.entries()].map(([clientId, entry]) => (
+                <li key={clientId}>
+                  <a
+                    href={`/clients/${clientId}`}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2.5 text-sm transition-colors duration-300 hover:bg-emerald-400/[0.12]"
+                  >
+                    <span className="truncate text-neutral-100">
+                      {entry.name}
+                    </span>
+                    <span className="shrink-0 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[11px] tabular-nums text-emerald-200">
+                      {entry.count}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
 
         <Panel title={tr.automation.missingWork} className="lg:col-span-3">
           <MissingWork items={missingWork} />

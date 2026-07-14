@@ -10,8 +10,9 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Button, Field, Panel, Select } from '@/components/ui';
+import { Button, Field, Panel, Select, Textarea } from '@/components/ui';
 import { useRealtimeEvent } from '@/components/realtime-provider';
+import { enqueueAiJob } from '@/lib/actions/ai';
 import { deleteAsset, enqueueBgRemove } from '@/lib/actions/assets';
 import { parseAssetVariants } from '@/lib/db/domain';
 import { publicAssetUrl } from '@/lib/r2-url';
@@ -21,7 +22,13 @@ import type { Asset, Enums } from '@/lib/db/types';
 type ClientOption = { id: string; name: string };
 
 const KINDS: Enums<'asset_kind'>[] = ['image', 'video', 'other'];
-const SOURCES: Enums<'asset_source'>[] = ['upload', 'telegram', 'ai', 'render'];
+const SOURCES: Enums<'asset_source'>[] = [
+  'upload',
+  'telegram',
+  'ai',
+  'render',
+  'client',
+];
 
 export function AssetsGrid({
   assets,
@@ -138,10 +145,14 @@ function AssetCard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editQueued, setEditQueued] = useState(false);
 
   const variants = parseAssetVariants(asset.variants);
   const thumbKey = variants.thumb ?? variants.square ?? variants.portrait;
   const thumbUrl = thumbKey ? publicAssetUrl(thumbKey) : null;
+  const editable = asset.kind === 'image' || asset.kind === 'video';
 
   function onBgRemove() {
     setError(null);
@@ -149,6 +160,32 @@ function AssetCard({
       const res = await enqueueBgRemove(asset.id);
       if (!res.ok) setError(tr.errors.generic);
       else router.refresh();
+    });
+  }
+
+  function onAiEdit() {
+    if (!editPrompt.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const res =
+        asset.kind === 'video'
+          ? await enqueueAiJob('edit_video', {
+              client_id: asset.client_id,
+              asset_ids: [asset.id],
+              prompt: editPrompt.trim(),
+            })
+          : await enqueueAiJob('edit_photo', {
+              client_id: asset.client_id,
+              asset_id: asset.id,
+              prompt: editPrompt.trim(),
+            });
+      if (!res.ok) {
+        setError(tr.errors.generic);
+      } else {
+        setEditQueued(true);
+        setEditOpen(false);
+        setEditPrompt('');
+      }
     });
   }
 
@@ -199,8 +236,56 @@ function AssetCard({
         )}
 
         {error && <p className="text-[11px] text-red-400">{error}</p>}
+        {editQueued && (
+          <p className="animate-enter text-[11px] text-emerald-300">
+            {tr.assets.aiEditQueued}
+          </p>
+        )}
+
+        {editOpen && (
+          <div className="space-y-1.5">
+            <Textarea
+              value={editPrompt}
+              onChange={(e) => setEditPrompt(e.target.value)}
+              placeholder={tr.assets.aiEditPrompt}
+              maxLength={1000}
+              rows={2}
+            />
+            <div className="flex gap-1.5">
+              <Button
+                variant="primary"
+                className="px-2.5 py-1 text-xs"
+                onClick={onAiEdit}
+                disabled={pending || !editPrompt.trim()}
+              >
+                {pending ? tr.common.loading : tr.assets.aiEdit}
+              </Button>
+              <Button
+                variant="secondary"
+                className="px-2.5 py-1 text-xs"
+                onClick={() => setEditOpen(false)}
+                disabled={pending}
+              >
+                {tr.common.cancel}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
+          {editable && !editOpen && (
+            <Button
+              variant="secondary"
+              className="px-2.5 py-1 text-xs"
+              onClick={() => {
+                setEditQueued(false);
+                setEditOpen(true);
+              }}
+              disabled={pending}
+            >
+              {tr.assets.aiEdit}
+            </Button>
+          )}
           {asset.kind === 'image' && (
             <Button
               variant="secondary"
