@@ -235,6 +235,7 @@ export const tr = {
       telegram: 'Telegram',
       ai: 'AI',
       render: 'Render',
+      client: 'Müşteri',
     },
     variants: 'Boyutlar',
     variantNames: {

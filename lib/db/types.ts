@@ -583,6 +583,84 @@ export type Database = {
           },
         ]
       }
+      client_messages: {
+        Row: {
+          asset_id: string | null
+          author: string | null
+          body: string
+          card_id: string | null
+          client_id: string
+          created_at: string
+          id: string
+          portal_link_id: string | null
+          read_by_client: boolean
+          read_by_team: boolean
+          sender: Database["public"]["Enums"]["message_sender"]
+        }
+        Insert: {
+          asset_id?: string | null
+          author?: string | null
+          body: string
+          card_id?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          portal_link_id?: string | null
+          read_by_client?: boolean
+          read_by_team?: boolean
+          sender: Database["public"]["Enums"]["message_sender"]
+        }
+        Update: {
+          asset_id?: string | null
+          author?: string | null
+          body?: string
+          card_id?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          portal_link_id?: string | null
+          read_by_client?: boolean
+          read_by_team?: boolean
+          sender?: Database["public"]["Enums"]["message_sender"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_messages_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_messages_author_fkey"
+            columns: ["author"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_messages_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_messages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_messages_portal_link_id_fkey"
+            columns: ["portal_link_id"]
+            isOneToOne: false
+            referencedRelation: "portal_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_packages: {
         Row: {
           active: boolean
@@ -667,6 +745,7 @@ export type Database = {
           active: boolean
           brand_profile: Json
           colors: Json
+          contact: Json
           created_at: string
           glossary: Json
           hashtag_bank: string[]
@@ -682,6 +761,7 @@ export type Database = {
           active?: boolean
           brand_profile?: Json
           colors?: Json
+          contact?: Json
           created_at?: string
           glossary?: Json
           hashtag_bank?: string[]
@@ -697,6 +777,7 @@ export type Database = {
           active?: boolean
           brand_profile?: Json
           colors?: Json
+          contact?: Json
           created_at?: string
           glossary?: Json
           hashtag_bank?: string[]
@@ -1231,7 +1312,7 @@ export type Database = {
       ad_status: "planned" | "active" | "done" | "cancelled"
       approval_decision: "approved" | "rejected"
       asset_kind: "image" | "video" | "other"
-      asset_source: "upload" | "telegram" | "ai" | "render"
+      asset_source: "upload" | "telegram" | "ai" | "render" | "client"
       automation_mode: "suggest" | "semi" | "full"
       card_status:
         | "idea"
@@ -1258,7 +1339,10 @@ export type Database = {
         | "scenario"
         | "poster"
         | "compliance"
+        | "edit_video"
+        | "edit_photo"
       job_status: "queued" | "running" | "done" | "error"
+      message_sender: "team" | "client"
       payment_kind: "package" | "extra"
       payment_status: "pending" | "paid" | "overdue"
       shoot_status: "planned" | "confirmed" | "done" | "cancelled"
@@ -1430,7 +1514,7 @@ export const Constants = {
       ad_status: ["planned", "active", "done", "cancelled"],
       approval_decision: ["approved", "rejected"],
       asset_kind: ["image", "video", "other"],
-      asset_source: ["upload", "telegram", "ai", "render"],
+      asset_source: ["upload", "telegram", "ai", "render", "client"],
       automation_mode: ["suggest", "semi", "full"],
       card_status: [
         "idea",
@@ -1458,8 +1542,11 @@ export const Constants = {
         "scenario",
         "poster",
         "compliance",
+        "edit_video",
+        "edit_photo",
       ],
       job_status: ["queued", "running", "done", "error"],
+      message_sender: ["team", "client"],
       payment_kind: ["package", "extra"],
       payment_status: ["pending", "paid", "overdue"],
       shoot_status: ["planned", "confirmed", "done", "cancelled"],

@@ -30,6 +30,19 @@ export const clientColorsSchema = z.object({
 });
 export type ClientColors = z.infer<typeof clientColorsSchema>;
 
+/** clients.contact — portal-editable company info (migration 0009). */
+export const clientContactSchema = z.object({
+  phone: z.string().max(40).default(''),
+  email: z.string().max(120).default(''),
+  address: z.string().max(300).default(''),
+  district: z.string().max(80).default(''),
+  website: z.string().max(200).default(''),
+  instagram: z.string().max(80).default(''),
+  hours: z.string().max(200).default(''),
+  notes: z.string().max(1000).default(''),
+});
+export type ClientContact = z.infer<typeof clientContactSchema>;
+
 /** assets.variants — R2 keys per rendition (SPEC §7.1). */
 export const assetVariantsSchema = z.object({
   square: z.string().optional(),
@@ -52,4 +65,9 @@ export function parseGlossary(json: unknown): GlossaryEntry[] {
 export function parseAssetVariants(json: unknown): AssetVariants {
   const parsed = assetVariantsSchema.safeParse(json ?? {});
   return parsed.success ? parsed.data : {};
+}
+
+export function parseClientContact(json: unknown): ClientContact {
+  const parsed = clientContactSchema.safeParse(json ?? {});
+  return parsed.success ? parsed.data : clientContactSchema.parse({});
 }
