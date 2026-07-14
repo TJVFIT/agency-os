@@ -242,6 +242,36 @@ async function dispatch(row: ActivityEntry): Promise<void> {
       await notifyManagersAll(`⚠️ Ödeme gecikti: ${title}`, '/finance');
       break;
     }
+    case 'message.sent': {
+      // Only client-sent messages ping the team; team sends reach the client
+      // when they next open the portal (no push channel for portal visitors).
+      if ((detail.sender as string) !== 'client') break;
+      const preview = (detail.preview as string) ?? '';
+      await notifyManagersAll(
+        `💬 Müşteri mesajı: "${preview}"`,
+        row.client_id ? `/clients/${row.client_id}` : '/',
+      );
+      break;
+    }
+    case 'asset.created': {
+      // Team uploads are self-evident; only portal (client) uploads ping.
+      if ((detail.source as string) !== 'client') break;
+      const kind = (detail.kind as string) === 'video' ? 'video' : 'görsel';
+      await notifyManagersAll(
+        `📎 Müşteri yeni ${kind} yükledi.`,
+        row.client_id ? `/clients/${row.client_id}` : '/assets',
+      );
+      break;
+    }
+    case 'ai.edit_video_done':
+    case 'ai.edit_photo_done': {
+      const note = (detail.note as string) ?? '';
+      await notifyManagersAll(
+        `✨ AI düzenleme hazır${note ? `: ${note}` : ''}`,
+        '/assets',
+      );
+      break;
+    }
     default:
       break;
   }

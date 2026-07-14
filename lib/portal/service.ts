@@ -1,10 +1,18 @@
 import 'server-only';
 
+import { randomUUID } from 'node:crypto';
+
 import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
-import { parseAssetVariants } from '@/lib/db/domain';
+import {
+  clientContactSchema,
+  parseAssetVariants,
+  parseClientContact,
+  type ClientContact,
+} from '@/lib/db/domain';
+import { headObject, presignPut, r2Ready } from '@/lib/r2-app';
 import { publicAssetUrl } from '@/lib/r2-url';
 import { istanbulToUtc } from '@/lib/dates';
 import type { ActionResult } from '@/lib/actions/cards';
@@ -35,6 +43,33 @@ export interface PortalAvailability {
   note: string;
 }
 
+export interface PortalMessage {
+  id: string;
+  sender: Database['public']['Enums']['message_sender'];
+  body: string;
+  createdAt: string;
+}
+
+export interface PortalPipelineCard {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  scheduledAt: string | null;
+}
+
+export interface PortalAsset {
+  id: string;
+  kind: Database['public']['Enums']['asset_kind'];
+  name: string;
+  source: Database['public']['Enums']['asset_source'];
+  createdAt: string;
+  /** Public thumb rendition when variants exist (images). */
+  thumbUrl: string | null;
+  /** Public URL when the object itself lives under public/ (edit results). */
+  url: string | null;
+}
+
 export interface PortalView {
   linkId: string;
   clientId: string;
@@ -44,6 +79,11 @@ export interface PortalView {
   cards: ApprovalCard[];
   ideas: PortalIdea[];
   availability: PortalAvailability[];
+  contact: ClientContact;
+  messages: PortalMessage[];
+  unreadMessages: number;
+  pipeline: PortalPipelineCard[];
+  media: PortalAsset[];
 }
 
 /** AI output stored in client_ideas.refined (see SPEC §4 idea_refine). */
@@ -126,7 +166,7 @@ export async function loadPortalView(
 
   const { data: client } = await admin
     .from('clients')
-    .select('name, langs, logo_asset_id')
+    .select('name, langs, logo_asset_id, contact')
     .eq('id', link.client_id)
     .single();
   if (!client) return null;
@@ -146,7 +186,7 @@ export async function loadPortalView(
 
   const { data: cards } = await admin
     .from('cards')
-    .select('id, title, type, status, card_contents(*)')
+    .select('id, title, type, status, scheduled_at, card_contents(*)')
     .eq('client_id', link.client_id)
     .order('created_at');
 
@@ -194,6 +234,24 @@ export async function loadPortalView(
     .order('starts_at')
     .limit(10);
 
+  const { data: messages } = await admin
+    .from('client_messages')
+    .select('id, sender, body, created_at, read_by_client')
+    .eq('client_id', link.client_id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  const unreadMessages = (messages ?? []).filter(
+    (m) => m.sender === 'team' && !m.read_by_client,
+  ).length;
+
+  const { data: media } = await admin
+    .from('assets')
+    .select('id, kind, original_name, r2_key, variants, source, created_at')
+    .eq('client_id', link.client_id)
+    .in('source', ['client', 'render'])
+    .order('created_at', { ascending: false })
+    .limit(24);
+
   return {
     linkId: link.id,
     clientId: link.client_id,
@@ -213,6 +271,48 @@ export async function loadPortalView(
       endsAt: w.ends_at,
       note: w.note,
     })),
+    contact: parseClientContact(client.contact),
+    messages: (messages ?? [])
+      .slice()
+      .reverse()
+      .map((m) => ({
+        id: m.id,
+        sender: m.sender,
+        body: m.body,
+        createdAt: m.created_at,
+      })),
+    unreadMessages,
+    pipeline: (cards ?? [])
+      .filter((c) => c.status !== 'archived')
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        type: c.type,
+        status: c.status,
+        scheduledAt: c.scheduled_at,
+      })),
+    media: (media ?? []).map((m) => toPortalAsset(m)),
+  };
+}
+
+function toPortalAsset(row: {
+  id: string;
+  kind: Database['public']['Enums']['asset_kind'];
+  original_name: string;
+  r2_key: string;
+  variants: unknown;
+  source: Database['public']['Enums']['asset_source'];
+  created_at: string;
+}): PortalAsset {
+  const variants = parseAssetVariants(row.variants);
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.original_name,
+    source: row.source,
+    createdAt: row.created_at,
+    thumbUrl: variants.thumb ? publicAssetUrl(variants.thumb) : null,
+    url: row.r2_key.startsWith('public/') ? publicAssetUrl(row.r2_key) : null,
   };
 }
 
@@ -391,4 +491,340 @@ export async function submitDecision(
   }
 
   return { ok: true };
+}
+
+// ---------- v3: client <-> team messages (migration 0009) ----------
+
+const messageInputSchema = z.object({
+  body: z.string().min(1).max(2000),
+});
+
+/** Portal "Mesajlar": insert a client message. The 0009 trigger logs it. */
+export async function submitMessage(
+  token: string,
+  input: z.input<typeof messageInputSchema>,
+): Promise<ActionResult> {
+  const parsed = messageInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
+
+  const admin = createSupabaseAdmin();
+  const link = await loadActiveLink(admin, token);
+  if (!link) return { ok: false, error: 'expired' };
+
+  const { error } = await admin.from('client_messages').insert({
+    client_id: link.client_id,
+    portal_link_id: link.id,
+    sender: 'client',
+    body: parsed.data.body,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Refresh the thread (polled while the tab is open — reads are not counted
+ * against the mutation rate limit, like loadPortalView). Marks team messages
+ * as read by the client.
+ */
+export async function fetchMessages(
+  token: string,
+): Promise<ActionResult<{ messages: PortalMessage[] }>> {
+  const admin = createSupabaseAdmin();
+  const link = await loadActiveLink(admin, token);
+  if (!link) return { ok: false, error: 'expired' };
+
+  const { data: rows, error } = await admin
+    .from('client_messages')
+    .select('id, sender, body, created_at')
+    .eq('client_id', link.client_id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) return { ok: false, error: error.message };
+
+  await admin
+    .from('client_messages')
+    .update({ read_by_client: true })
+    .eq('client_id', link.client_id)
+    .eq('sender', 'team')
+    .eq('read_by_client', false);
+
+  return {
+    ok: true,
+    data: {
+      messages: (rows ?? [])
+        .slice()
+        .reverse()
+        .map((m) => ({
+          id: m.id,
+          sender: m.sender,
+          body: m.body,
+          createdAt: m.created_at,
+        })),
+    },
+  };
+}
+
+// ---------- v3: company info self-service ----------
+
+/** Portal "Bilgiler": the client maintains their own contact card. */
+export async function submitContact(
+  token: string,
+  input: z.input<typeof clientContactSchema>,
+): Promise<ActionResult> {
+  const parsed = clientContactSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
+
+  const admin = createSupabaseAdmin();
+  const link = await loadActiveLink(admin, token);
+  if (!link) return { ok: false, error: 'expired' };
+
+  const { error } = await admin
+    .from('clients')
+    .update({ contact: parsed.data })
+    .eq('id', link.client_id);
+  if (error) return { ok: false, error: error.message };
+
+  // No trigger on clients — log here (rule 2).
+  await admin.from('activity_log').insert({
+    actor: null,
+    client_id: link.client_id,
+    action: 'client.contact_updated',
+    detail: { source: 'portal' },
+  });
+  return { ok: true };
+}
+
+// ---------- v3: client media upload (presign → PUT → complete) ----------
+
+// SPEC §14 caps, mirrored from app/api/assets/*: 10 MB image, 200 MB video.
+const MAX_IMAGE = 10 * 1024 * 1024;
+const MAX_VIDEO = 200 * 1024 * 1024;
+
+const presignInputSchema = z.object({
+  filename: z.string().min(1).max(255),
+  contentType: z.string().regex(/^(image|video)\//),
+  size: z.number().int().positive(),
+});
+
+export async function presignUpload(
+  token: string,
+  input: z.input<typeof presignInputSchema>,
+): Promise<ActionResult<{ key: string; url: string }>> {
+  const parsed = presignInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
+
+  const admin = createSupabaseAdmin();
+  const link = await loadActiveLink(admin, token);
+  if (!link) return { ok: false, error: 'expired' };
+
+  if (!r2Ready()) return { ok: false, error: 'r2_not_configured' };
+  const cap = parsed.data.contentType.startsWith('video/')
+    ? MAX_VIDEO
+    : MAX_IMAGE;
+  if (parsed.data.size > cap) return { ok: false, error: 'too_large' };
+
+  // Same key shape as the team presign route — the clientId comes from the
+  // TOKEN, never from the caller.
+  const ext =
+    parsed.data.filename.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') ||
+    'bin';
+  const key = `private/${link.client_id}/uploads/${randomUUID()}.${ext}`;
+  const url = await presignPut(key, parsed.data.contentType, parsed.data.size);
+  if (!url) return { ok: false, error: 'r2_not_configured' };
+  return { ok: true, data: { key, url } };
+}
+
+const completeInputSchema = z.object({
+  key: z.string().min(1),
+  kind: z.enum(['image', 'video']),
+  originalName: z.string().max(255).default(''),
+  width: z.number().int().positive().nullish(),
+  height: z.number().int().positive().nullish(),
+  durationS: z.number().positive().nullish(),
+});
+
+export async function completeUpload(
+  token: string,
+  input: z.input<typeof completeInputSchema>,
+): Promise<ActionResult<{ assetId: string }>> {
+  const parsed = completeInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
+
+  const admin = createSupabaseAdmin();
+  const link = await loadActiveLink(admin, token);
+  if (!link) return { ok: false, error: 'expired' };
+  const b = parsed.data;
+
+  // Key must be a presigned upload key for THIS link's client (same check as
+  // app/api/assets/complete).
+  const keyPattern = new RegExp(
+    `^private/${link.client_id}/uploads/[0-9a-f-]+\\.[a-z0-9]+$`,
+  );
+  if (!keyPattern.test(b.key)) return { ok: false, error: 'invalid_key' };
+
+  if (r2Ready()) {
+    const head = await headObject(b.key);
+    if (!head) return { ok: false, error: 'not_uploaded' };
+    const ct = head.contentType ?? '';
+    const actualKind = ct.startsWith('image/')
+      ? 'image'
+      : ct.startsWith('video/')
+        ? 'video'
+        : 'other';
+    if (actualKind !== b.kind) return { ok: false, error: 'kind_mismatch' };
+    const cap = actualKind === 'video' ? MAX_VIDEO : MAX_IMAGE;
+    if (head.contentLength !== null && head.contentLength > cap)
+      return { ok: false, error: 'too_large' };
+  }
+
+  const { data: asset, error } = await admin
+    .from('assets')
+    .insert({
+      client_id: link.client_id,
+      kind: b.kind,
+      r2_key: b.key,
+      original_name: b.originalName,
+      width: b.width ?? null,
+      height: b.height ?? null,
+      duration_s: b.durationS ?? null,
+      source: 'client',
+      uploaded_by: null,
+    })
+    .select('id')
+    .single();
+  if (error || !asset) return { ok: false, error: error?.message ?? 'insert' };
+
+  if (b.kind === 'image') {
+    await admin.from('ai_jobs').insert({
+      kind: 'image_variants',
+      payload: { asset_id: asset.id },
+      created_by: null,
+    });
+  }
+  return { ok: true, data: { assetId: asset.id } };
+}
+
+// ---------- v3: AI edit requests (UPGRADE_SPEC §11a) ----------
+
+const editRequestSchema = z.object({
+  kind: z.enum(['edit_video', 'edit_photo']),
+  assetIds: z.array(z.uuid()).min(1).max(4),
+  prompt: z.string().min(1).max(1000),
+});
+
+/** Portal "Editle": queue an edit_video / edit_photo job on own assets. */
+export async function submitEditRequest(
+  token: string,
+  input: z.input<typeof editRequestSchema>,
+): Promise<ActionResult<{ jobId: string }>> {
+  const parsed = editRequestSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  if (await portalRateLimited()) return { ok: false, error: 'rate_limited' };
+
+  const admin = createSupabaseAdmin();
+  const link = await loadActiveLink(admin, token);
+  if (!link) return { ok: false, error: 'expired' };
+  const { kind, assetIds, prompt } = parsed.data;
+
+  const wantKind = kind === 'edit_video' ? 'video' : 'image';
+  if (kind === 'edit_photo' && assetIds.length !== 1)
+    return { ok: false, error: 'validation' };
+
+  // Every referenced asset must belong to this link's client and match the
+  // edit kind (the worker re-checks — this is the friendly-error layer).
+  const { data: owned } = await admin
+    .from('assets')
+    .select('id, kind')
+    .in('id', assetIds)
+    .eq('client_id', link.client_id);
+  const byId = new Map((owned ?? []).map((a) => [a.id, a.kind]));
+  for (const id of assetIds) {
+    if (byId.get(id) !== wantKind)
+      return { ok: false, error: 'assetNotFound' };
+  }
+
+  const payload =
+    kind === 'edit_video'
+      ? { client_id: link.client_id, asset_ids: assetIds, prompt }
+      : { client_id: link.client_id, asset_id: assetIds[0], prompt };
+  const { data: job, error } = await admin
+    .from('ai_jobs')
+    .insert({ kind, payload, created_by: null })
+    .select('id')
+    .single();
+  if (error || !job) return { ok: false, error: error?.message ?? 'insert' };
+
+  // ai_jobs inserts don't log — record the client-originated request (rule 2).
+  await admin.from('activity_log').insert({
+    actor: null,
+    client_id: link.client_id,
+    action: 'edit.requested',
+    detail: { kind, prompt: prompt.slice(0, 120), source: 'portal' },
+  });
+  return { ok: true, data: { jobId: job.id } };
+}
+
+export interface PortalEditJobState {
+  status: 'pending' | 'done' | 'error';
+  note: string;
+  resultUrl: string | null;
+  resultKind: 'image' | 'video' | null;
+}
+
+/** Poll an edit job's state (token-scoped — only this client's jobs). */
+export async function fetchEditJob(
+  token: string,
+  jobId: string,
+): Promise<ActionResult<PortalEditJobState>> {
+  if (!z.uuid().safeParse(jobId).success)
+    return { ok: false, error: 'validation' };
+  const admin = createSupabaseAdmin();
+  const link = await loadActiveLink(admin, token);
+  if (!link) return { ok: false, error: 'expired' };
+
+  const { data: job } = await admin
+    .from('ai_jobs')
+    .select('id, kind, status, payload, result')
+    .eq('id', jobId)
+    .in('kind', ['edit_video', 'edit_photo'])
+    .single();
+  const payload = (job?.payload ?? {}) as { client_id?: string };
+  if (!job || payload.client_id !== link.client_id)
+    return { ok: false, error: 'expired' };
+
+  if (job.status === 'error')
+    return {
+      ok: true,
+      data: { status: 'error', note: '', resultUrl: null, resultKind: null },
+    };
+  if (job.status !== 'done')
+    return {
+      ok: true,
+      data: { status: 'pending', note: '', resultUrl: null, resultKind: null },
+    };
+
+  const result = (job.result ?? {}) as { asset_id?: string; note?: string };
+  let resultUrl: string | null = null;
+  let resultKind: 'image' | 'video' | null = null;
+  if (result.asset_id) {
+    const { data: asset } = await admin
+      .from('assets')
+      .select('r2_key, kind, client_id')
+      .eq('id', result.asset_id)
+      .single();
+    if (asset && asset.client_id === link.client_id) {
+      resultKind = asset.kind === 'video' ? 'video' : 'image';
+      resultUrl = asset.r2_key.startsWith('public/')
+        ? publicAssetUrl(asset.r2_key)
+        : null;
+    }
+  }
+  return {
+    ok: true,
+    data: { status: 'done', note: result.note ?? '', resultUrl, resultKind },
+  };
 }
