@@ -18,6 +18,10 @@ import { interpolate, tr } from '@/lib/i18n/tr';
 
 import { MissingWork } from './_components/missing-work';
 import {
+  PublishFailures,
+  type PublishFailureItem,
+} from './_components/publish-failures';
+import {
   SuggestionsPanel,
   type SuggestionItem,
 } from './_components/suggestions-panel';
@@ -52,6 +56,7 @@ export default async function DashboardPage() {
     dueRes,
     shootRes,
     unreadRes,
+    failRes,
   ] = await Promise.all([
       myQueue(userId, role),
       gapRadar(),
@@ -90,6 +95,14 @@ export default async function DashboardPage() {
         .eq('sender', 'client')
         .eq('read_by_team', false)
         .limit(200),
+      // Başarısız yayınlar: publish jobs that exhausted their retries (req 27/28).
+      supabase
+        .from('ai_jobs')
+        .select('id, payload, error, updated_at')
+        .eq('kind', 'publish')
+        .eq('status', 'error')
+        .order('updated_at', { ascending: false })
+        .limit(20),
     ]);
 
   const suggestions: SuggestionItem[] = (
@@ -144,6 +157,38 @@ export default async function DashboardPage() {
     unreadByClient.set(row.client_id, entry);
   }
 
+  // Başarısız yayınlar: resolve each errored publish job's card title.
+  const failJobs = (failRes.data ?? []) as Array<{
+    id: string;
+    payload: { card_id?: string } | null;
+    error: string | null;
+  }>;
+  const failCardIds = [
+    ...new Set(
+      failJobs
+        .map((j) => j.payload?.card_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  let failTitles: Record<string, string> = {};
+  if (failCardIds.length) {
+    const { data: failCards } = await supabase
+      .from('cards')
+      .select('id, title')
+      .in('id', failCardIds);
+    failTitles = Object.fromEntries(
+      (failCards ?? []).map((c) => [c.id, c.title]),
+    );
+  }
+  const publishFailures: PublishFailureItem[] = failJobs.map((j) => ({
+    jobId: j.id,
+    cardId: j.payload?.card_id ?? null,
+    cardTitle: j.payload?.card_id
+      ? (failTitles[j.payload.card_id] ?? null)
+      : null,
+    error: j.error,
+  }));
+
   return (
     <div className="p-4 md:p-6">
       <PageHeader title={tr.dashboard.title}>
@@ -155,6 +200,15 @@ export default async function DashboardPage() {
       </PageHeader>
 
       <div className="stagger-children grid gap-4 lg:grid-cols-3">
+        {isManager && publishFailures.length > 0 && (
+          <Panel
+            title={tr.dashboard.publishFailures}
+            className="lg:col-span-3"
+          >
+            <PublishFailures failures={publishFailures} canRetry={isManager} />
+          </Panel>
+        )}
+
         <Panel title={tr.dashboard.myQueue} className="lg:col-span-2">
           {queue.mine.length === 0 ? (
             <p className="text-sm text-neutral-500">

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { PageHeader } from '@/components/ui';
+import { PageHeader, Panel } from '@/components/ui';
 import { getSessionProfile } from '@/lib/auth';
 import { getClient } from '@/lib/db/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -10,9 +10,16 @@ import {
   parseGlossary,
   type ClientColors,
 } from '@/lib/db/domain';
+import {
+  compareQuota,
+  emptyUsage,
+  monthlyUsage,
+  QUOTA_TYPES,
+} from '@/lib/finance';
 import type { ClientMessage, Report } from '@/lib/db/types';
 import { tr } from '@/lib/i18n/tr';
 
+import { QuotaBars } from '../../finance/_components/quota-bars';
 import { BrandProfileEditor } from '../_components/brand-profile-editor';
 import { GlossaryEditor } from '../_components/glossary-editor';
 import { HashtagBankEditor } from '../_components/hashtag-bank-editor';
@@ -22,6 +29,13 @@ import { ClientSettingsEditor } from '../_components/client-settings-editor';
 import { DeleteClientButton } from '../_components/delete-client-button';
 import { PortalPanel } from './_components/portal-panel';
 import { MessagesPanel } from './_components/messages-panel';
+
+const QUOTA_LABELS: Record<(typeof QUOTA_TYPES)[number], string> = {
+  post: tr.cardTypes.post,
+  reel: tr.cardTypes.reel,
+  story: tr.cardTypes.story,
+  shoot: tr.production.shoots,
+};
 
 export default async function ClientDetailPage({
   params,
@@ -56,26 +70,45 @@ export default async function ClientDetailPage({
 
   // Reports history — server-side read (allowed here per module brief).
   const supabase = await createSupabaseServer();
-  const [{ data: reportRows }, { data: messageRows }, { data: profileRows }] =
-    await Promise.all([
-      supabase
-        .from('reports')
-        .select('*')
-        .eq('client_id', id)
-        .order('week_start', { ascending: false }),
-      supabase
-        .from('client_messages')
-        .select('*')
-        .eq('client_id', id)
-        .order('created_at', { ascending: true })
-        .limit(100),
-      supabase.from('profiles').select('id, full_name'),
-    ]);
+  const [
+    { data: reportRows },
+    { data: messageRows },
+    { data: profileRows },
+    { data: pkgRow },
+    usage,
+  ] = await Promise.all([
+    supabase
+      .from('reports')
+      .select('*')
+      .eq('client_id', id)
+      .order('week_start', { ascending: false }),
+    supabase
+      .from('client_messages')
+      .select('*')
+      .eq('client_id', id)
+      .order('created_at', { ascending: true })
+      .limit(100),
+    supabase.from('profiles').select('id, full_name'),
+    // Active package for this client → kota bars (UPGRADE_SPEC §7 wants them on
+    // the client page too, not only /finance).
+    supabase
+      .from('client_packages')
+      .select('*')
+      .eq('client_id', id)
+      .eq('active', true)
+      .order('starts_on', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    monthlyUsage(),
+  ]);
   const reports = (reportRows ?? []) as Report[];
   const messages = (messageRows ?? []) as ClientMessage[];
   const authorNames = Object.fromEntries(
     (profileRows ?? []).map((p) => [p.id, p.full_name]),
   );
+  const quotaCmp = pkgRow
+    ? compareQuota(pkgRow.monthly, usage[id] ?? emptyUsage())
+    : null;
 
   const brandProfile = parseBrandProfile(client.brand_profile);
   const glossary = parseGlossary(client.glossary);
@@ -112,7 +145,26 @@ export default async function ClientDetailPage({
           langs={client.langs}
           active={client.active}
           colors={colors}
+          location={
+            (client.location ?? null) as {
+              lat?: number;
+              lng?: number;
+              district?: string;
+            } | null
+          }
         />
+
+        {quotaCmp && pkgRow && (
+          <Panel title={`${tr.finance.quotaUsage} · ${pkgRow.name}`}>
+            <QuotaBars
+              items={QUOTA_TYPES.map((t) => ({
+                key: t,
+                label: QUOTA_LABELS[t],
+                ...quotaCmp[t],
+              }))}
+            />
+          </Panel>
+        )}
 
         <BrandProfileEditor clientId={client.id} initial={brandProfile} />
 

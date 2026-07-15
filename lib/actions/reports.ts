@@ -23,11 +23,34 @@ export async function saveReportMetrics(
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const supabase = await createSupabaseServer();
+
+  // Merge, don't replace: the Friday cron auto-fills nested metrics
+  // (publishes/quota/payments) that this manual editor must not clobber. Keep
+  // the cron-owned nested keys, replace only the manual scalar entries (so a
+  // deleted manual row also disappears).
+  const { data: existingRow } = await supabase
+    .from('reports')
+    .select('metrics')
+    .eq('client_id', parsed.data.clientId)
+    .eq('week_start', parsed.data.weekStart)
+    .maybeSingle();
+  const existing =
+    existingRow?.metrics &&
+    typeof existingRow.metrics === 'object' &&
+    !Array.isArray(existingRow.metrics)
+      ? (existingRow.metrics as Record<string, unknown>)
+      : {};
+  const preserved: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(existing)) {
+    if (v !== null && typeof v === 'object') preserved[k] = v;
+  }
+  const merged = { ...preserved, ...parsed.data.metrics };
+
   const { error } = await supabase.from('reports').upsert(
     {
       client_id: parsed.data.clientId,
       week_start: parsed.data.weekStart,
-      metrics: parsed.data.metrics as Json,
+      metrics: merged as Json,
     },
     { onConflict: 'client_id,week_start' },
   );

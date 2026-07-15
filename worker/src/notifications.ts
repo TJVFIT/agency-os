@@ -172,6 +172,13 @@ async function dispatch(row: ActivityEntry): Promise<void> {
         );
         break;
       }
+      if (detail.reason === 'content_changed_after_approval') {
+        await notifyManagersAll(
+          `⚠️ Yayın engellendi: ${title} — içerik onaydan sonra değişti, yeniden onay gerekli.`,
+          url,
+        );
+        break;
+      }
       const issues = Array.isArray(detail.issues)
         ? (detail.issues as { code?: string }[])
             .map((i) => i.code)
@@ -210,6 +217,38 @@ async function dispatch(row: ActivityEntry): Promise<void> {
         }
       } else if (to === 'done') {
         await notifyManagersAll(`✅ Çekim tamamlandı: ${title}`, '/production');
+      }
+      break;
+    }
+    case 'shoot.updated': {
+      // Re-brief the crew when a *confirmed* shoot's time or crew changed —
+      // the original brief only fired on planned→confirmed (UPGRADE_SPEC §3).
+      const shootId = detail.shoot_id as string | undefined;
+      const status = detail.status as string | undefined;
+      const fields = Array.isArray(detail.fields)
+        ? (detail.fields as string[])
+        : [];
+      const briefWorthy = fields.some((f) =>
+        ['startsAt', 'endsAt', 'crew', 'vehicleId'].includes(f),
+      );
+      if (status !== 'confirmed' || !shootId || !briefWorthy) break;
+      const { data: shoot } = await db()
+        .from('shoots')
+        .select('title, crew, starts_at')
+        .eq('id', shootId)
+        .single();
+      if (!shoot) break;
+      const when = formatInTimeZone(
+        new Date(shoot.starts_at),
+        TZ,
+        'dd.MM HH:mm',
+      );
+      for (const memberId of shoot.crew ?? []) {
+        await notifyUserAll(
+          memberId,
+          `🔄 Çekim güncellendi: ${shoot.title} — ${when}. Brif: /production`,
+          '/production',
+        );
       }
       break;
     }

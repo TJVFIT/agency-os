@@ -83,7 +83,11 @@ export function RoutePanel({
           <div className="animate-enter space-y-2">
             {route.stops.length === 0 ? (
               <p className="text-xs text-neutral-500">
-                {tr.production.noShoots}
+                {route.skipped > 0
+                  ? interpolate(tr.production.routeSkipped, {
+                      n: route.skipped,
+                    })
+                  : tr.production.noShoots}
               </p>
             ) : (
               <ol className="stagger-children space-y-1.5">
@@ -116,6 +120,11 @@ export function RoutePanel({
                   {route.totalMinutes} dk
                 </span>
               </div>
+            )}
+            {route.stops.length > 0 && route.skipped > 0 && (
+              <p className="text-[11px] text-amber-300/80">
+                {interpolate(tr.production.routeSkipped, { n: route.skipped })}
+              </p>
             )}
           </div>
         )}

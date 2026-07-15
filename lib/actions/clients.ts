@@ -63,6 +63,14 @@ export async function createClientAction(
   return { ok: true, data: { id: data.id } };
 }
 
+/** clients.location for route planning (production.ts toGeo reads lat/lng). */
+const locationSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  district: z.string().max(120).optional(),
+  address: z.string().max(400).optional(),
+});
+
 const updateClientSchema = z.object({
   clientId: z.uuid(),
   name: z.string().min(1).max(120).optional(),
@@ -77,6 +85,8 @@ const updateClientSchema = z.object({
   hashtagBank: z.array(z.string()).optional(),
   colors: clientColorsSchema.optional(),
   logoAssetId: z.uuid().nullable().optional(),
+  /** null clears the saved location. */
+  location: locationSchema.nullable().optional(),
 });
 
 export async function updateClientAction(
@@ -100,6 +110,7 @@ export async function updateClientAction(
       ...(f.hashtagBank !== undefined && { hashtag_bank: f.hashtagBank }),
       ...(f.colors !== undefined && { colors: f.colors }),
       ...(f.logoAssetId !== undefined && { logo_asset_id: f.logoAssetId }),
+      ...(f.location !== undefined && { location: f.location ?? {} }),
     })
     .eq('id', clientId);
   if (error) return { ok: false, error: error.message };

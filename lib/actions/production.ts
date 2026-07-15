@@ -120,7 +120,7 @@ const updateShootSchema = z.object({
 export async function updateShoot(
   input: z.input<typeof updateShootSchema>,
 ): Promise<ActionResult> {
-  await requireSession();
+  const session = await requireSession();
   const parsed = updateShootSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
   const { shootId, ...fields } = parsed.data;
@@ -128,7 +128,7 @@ export async function updateShoot(
   const supabase = await createSupabaseServer();
   const { data: shoot } = await supabase
     .from('shoots')
-    .select('id, starts_at, ends_at')
+    .select('id, client_id, starts_at, ends_at, status, crew')
     .eq('id', shootId)
     .single();
   if (!shoot) return { ok: false, error: 'notFound' };
@@ -158,6 +158,22 @@ export async function updateShoot(
     })
     .eq('id', shootId);
   if (error) return { ok: false, error: error.message };
+
+  // No update trigger for non-status shoot edits — log explicitly (hard rule 2).
+  // detail.status + fields let the worker re-brief the crew when a *confirmed*
+  // shoot's time or crew changed (UPGRADE_SPEC §3).
+  await createSupabaseAdmin()
+    .from('activity_log')
+    .insert({
+      actor: session.userId,
+      client_id: shoot.client_id,
+      action: 'shoot.updated',
+      detail: {
+        shoot_id: shootId,
+        fields: Object.keys(fields),
+        status: shoot.status,
+      },
+    });
 
   revalidatePath('/production');
   return { ok: true };

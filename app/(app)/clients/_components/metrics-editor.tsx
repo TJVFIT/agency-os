@@ -20,8 +20,14 @@ function currentWeekStart(): string {
 function metricsToRows(metrics: unknown): MetricRow[] {
   if (!metrics || typeof metrics !== 'object' || Array.isArray(metrics))
     return [];
-  return Object.entries(metrics as Record<string, unknown>).map(
-    ([key, value]) => ({ key, value: String(value ?? '') }),
+  return (
+    Object.entries(metrics as Record<string, unknown>)
+      // Only scalar entries are manually editable. The cron auto-fills nested
+      // objects (publishes/quota/payments) that are narrated in body_md — they
+      // must not surface here, where String(value) would print '[object Object]'
+      // and a re-save would corrupt them.
+      .filter(([, value]) => value === null || typeof value !== 'object')
+      .map(([key, value]) => ({ key, value: String(value ?? '') }))
   );
 }
 

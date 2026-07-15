@@ -63,6 +63,7 @@ export const tr = {
     assets: 'Medya',
     reports: 'Raporlar',
     settings: 'Ayarlar',
+    manual: 'Kılavuz',
   },
 
   statuses: {
@@ -183,6 +184,9 @@ export const tr = {
     workerStatus: 'Worker durumu',
     workerAlive: 'Çalışıyor',
     workerDead: 'Erişilemiyor',
+    publishFailures: 'Başarısız yayınlar',
+    publishFailuresEmpty: 'Başarısız yayın yok.',
+    retryPublish: 'Tekrar dene',
   },
 
   clients: {
@@ -267,6 +271,8 @@ export const tr = {
   ai: {
     generateCaptions: '3 başlık üret',
     translate: 'Çevir',
+    generatePoster: 'Afiş üret',
+    posterDone: 'Afiş üretildi — karta eklendi (Medya).',
     draftReply: 'Yanıt taslağı',
     replyIncoming: 'Gelen mesaj',
     replyContext: 'Bağlam (opsiyonel)',
@@ -334,6 +340,10 @@ export const tr = {
     location: 'Konum',
     district: 'Semt',
     address: 'Adres',
+    lat: 'Enlem',
+    lng: 'Boylam',
+    locationHint:
+      'Rota planlaması için koordinat girin (Google Haritalar’dan kopyalayın, örn. 39.92 / 32.85).',
     block: 'Zaman bloğu',
     defaultBlock: 'Varsayılan blok: 3 saat 30 dk',
     statuses: {
@@ -348,6 +358,7 @@ export const tr = {
     suggestSlots: 'Zaman öner',
     route: 'Rota',
     routeTotal: 'Toplam {km} km',
+    routeSkipped: '{n} çekimin konumu yok — rotaya eklenmedi.',
     vehicles: 'Araçlar',
     newVehicle: 'Yeni araç',
     plate: 'Plaka',
@@ -627,6 +638,71 @@ export const tr = {
     noPayments: 'Henüz ödeme kaydı yok — ilk ödeme kaydınızı ekleyin',
     noAds: 'Henüz reklam görevi yok — ilk kampanyanızı planlayın',
     quotaNote: 'Kota kullanımı, içerikler yayınlandıkça otomatik dolar.',
+  },
+
+  manual: {
+    title: 'Kullanım Kılavuzu',
+    subtitle: 'Agency OS’i 2 dakikada öğrenin',
+    intro:
+      'Agency OS ajansın tüm işini tek yerden yönetir: fikir gelir, ekip üretir, müşteri onaylar, sistem Instagram ve TikTok’ta otomatik yayınlar. Aşağıdaki özet günlük kullanım için yeterlidir.',
+    quickStart: {
+      title: 'Hızlı başlangıç',
+      steps: [
+        'Panel’de bugünkü işleri ve size düşen kartları görün.',
+        'Pano’da kart oluşturun; içerik ilerledikçe sütunlar arasında sürükleyin.',
+        'İçerik hazır olunca müşteri onayına gönderin.',
+        'Onaylanan içerik takvime eklenir ve otomatik yayınlanır.',
+        'Hafta ve ay sonunda rapor otomatik hazırlanır.',
+      ],
+    },
+    pipeline: {
+      title: 'İçerik akışı',
+      note: 'Her kart bu adımlardan geçer. Tek dilli müşterilerde “Çevrildi” adımı atlanır.',
+      stages: [
+        { name: 'Fikir', desc: 'İçerik fikri girildi, henüz metin yok.' },
+        { name: 'Metin taslağı', desc: 'Başlık ve açıklama yazıldı (AI yardımıyla).' },
+        { name: 'Görsel hazır', desc: 'Görsel veya video eklendi.' },
+        { name: 'Çevrildi', desc: 'TR↔EN çeviri tamamlandı.' },
+        { name: 'Onaylandı', desc: 'Müdür/müşteri onayı verildi — yayına hazır.' },
+        { name: 'Zamanlandı', desc: 'Yayın tarihi ve platform belirlendi.' },
+        { name: 'Yayınlandı', desc: 'Instagram/TikTok’ta yayınlandı.' },
+      ],
+    },
+    sections: {
+      title: 'Bölümler',
+      items: [
+        { name: 'Panel', desc: 'Bugünün planı, size düşen işler, eksik işler ve öneriler.' },
+        { name: 'Pano', desc: 'Tüm kartlar; sütunlar arası sürükleyerek durum değiştirin.' },
+        { name: 'Takvim', desc: 'Zamanlanmış ve yayınlanan içerikler.' },
+        { name: 'Müşteriler', desc: 'Marka profili, sözlük, hashtag bankası, portal bağlantısı.' },
+        { name: 'Üretim', desc: 'Çekimler, araçlar, izinler; sistem uygun slot ve rota önerir.' },
+        { name: 'Finans', desc: 'Paketler ve kota, ödemeler, reklam görevleri.' },
+        { name: 'Medya', desc: 'Yüklenen ve üretilen tüm görsel/video dosyaları.' },
+        { name: 'Raporlar', desc: 'Haftalık ve aylık otomatik raporlar.' },
+        { name: 'Ayarlar', desc: 'Kullanıcılar, Telegram, Postiz eşleme, otomasyon modu.' },
+      ],
+    },
+    automation: {
+      title: 'Otomasyon modları',
+      note: 'Modu Ayarlar’dan seçin. Hangi modda olursanız olun, içerik yalnızca onaylandıktan sonra yayınlanır.',
+      modes: [
+        { name: 'Öneri', desc: 'Sistem sadece önerir; her adımı siz yaparsınız.' },
+        { name: 'Yarı otomatik', desc: 'Güvenli adımları (görev açma, plan) sistem yapar; yayın onayı sizde kalır.' },
+        { name: 'Tam otomatik', desc: 'Uçtan uca otomatik — yalnızca onay adımları insana bırakılır.' },
+      ],
+      killSwitch:
+        'İstediğiniz an Ayarlar’dan otomasyonu kapatıp tamamen manuel yönetime geçebilirsiniz.',
+    },
+    notifications: {
+      title: 'Bildirimler',
+      items: [
+        'Telegram: görev, onay ve hata bildirimleri anlık gelir.',
+        'Push: tarayıcı ve telefon bildirimleri için Ayarlar’dan izin verin.',
+        'PWA: uygulamayı telefona kurmak için tarayıcı menüsünden “Ana ekrana ekle”yi seçin.',
+      ],
+    },
+    portalNote:
+      'Müşteriler, kendilerine verdiğiniz portal bağlantısından fikir gönderir, müsaitlik bildirir ve içerikleri onaylar.',
   },
 
   errors: {

@@ -18,7 +18,7 @@ existing free tiers. Deviations and their tradeoffs are flagged inline.
 | 23  | Instagram bağlama                  | EXISTS         | Postiz integrations + settings mapping             |
 | 24  | Instagram oto paylaşım             | EXISTS         | publish dispatcher (worker/src/cron.ts)            |
 | 25  | TikTok bağlama                     | EXISTS         | same Postiz path (platform `tiktok`)               |
-| 26  | TikTok doğrudan/taslak             | EXTEND         | publish payload gains `draft` option               |
+| 26  | TikTok doğrudan/taslak             | NOT DONE (v2)  | direct publish only; draft/inbox not wired (see §5a)|
 | 27  | Paylaşım hataları takibi           | EXISTS, extend | activity `publish.failed` → dashboard widget       |
 | 28  | Başarısız paylaşım retry           | EXISTS         | queue backoff ×5 + dispatcher re-enqueue           |
 | 29  | Paylaşım öncesi uygunluk kontrolü  | NEW            | lib/compliance.ts, dispatcher gate (§5)            |
@@ -89,6 +89,21 @@ report roll-up (§7).
   (brand profile), platform length limits, hashtag count, media attached,
   scheduled time sanity. Dispatcher runs it before creating the `publish`
   job; failures → card error badge + suggestion/notification instead of send.
+
+## 5a. TikTok draft/inbox (req 26) — NOT delivered in v2 (flagged)
+
+The publish handler posts with Postiz `type: 'now'` only — there is no
+draft/inbox path, no `publish_mode` column, and no UI toggle. Requirement 26
+("TikTok doğrudan **veya taslak**") is therefore only half met: direct publish
+works, draft does not. This is flagged rather than silently shipped.
+
+To deliver it: (a) confirm the self-hosted Postiz build's TikTok integration can
+express draft/inbox (TikTok's Content Posting API gates unaudited apps to
+private/draft-only until review — Postiz may already send draft for such apps,
+or may not expose the choice at all); (b) if it can, add a per-account or
+per-card `publish_mode` (direct|draft) column + settings/card toggle and branch
+`postizCreatePost` to send `type: 'draft'`. Do not fake a draft state that
+doesn't match real TikTok behavior.
 
 ## 6. Task automation (req 30–31)
 

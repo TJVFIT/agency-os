@@ -17,6 +17,7 @@ const NAV_ITEMS: Array<{ href: string; label: string }> = [
   { href: '/assets', label: tr.nav.assets },
   { href: '/reports', label: tr.nav.reports },
   { href: '/settings', label: tr.nav.settings },
+  { href: '/manual', label: tr.nav.manual },
 ];
 
 export function AppShell({

@@ -19,9 +19,9 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 
-import { checkCompliance, type ComplianceIssue } from '../../lib/compliance';
-import { parseBrandProfile } from '../../lib/db/domain';
 import type { Json } from '../../lib/db/types';
+import { QUOTA_TYPES } from '../../lib/quota-types';
+import { checkCardCompliance, approvalIsStale } from './compliance-check';
 import { db, logActivity } from './supabase';
 import { notifyManagers, notifyUser } from './telegram';
 import { mayAutoAct } from './automation';
@@ -114,61 +114,27 @@ async function insertSuggestion(opts: {
   return true;
 }
 
-// ---------- compliance gate (UPGRADE_SPEC §5) ----------
-
-/**
- * Run the pure compliance engine over a card's TR content for each of its
- * platforms. `scheduledAt` is passed as null on purpose: due cards are past
- * their scheduled_at by definition — the schedule-sanity check belongs to the
- * scheduling UI, not to the dispatcher/detector. Issues identical across
- * platforms are de-duplicated to keep the payload compact.
- */
-async function checkCardCompliance(
-  cardId: string,
-  clientId: string,
-  platforms: string[],
-): Promise<{ ok: boolean; issues: ComplianceIssue[] }> {
-  const [{ data: client }, { data: content }] = await Promise.all([
-    db().from('clients').select('brand_profile').eq('id', clientId).single(),
-    db()
-      .from('card_contents')
-      .select('caption, hashtags, media_asset_ids')
-      .eq('card_id', cardId)
-      .eq('lang', 'tr')
-      .maybeSingle(),
-  ]);
-  const bannedWords = parseBrandProfile(client?.brand_profile).banned_words;
-
-  const seen = new Set<string>();
-  const issues: ComplianceIssue[] = [];
-  for (const platform of platforms.length ? platforms : ['instagram']) {
-    const result = checkCompliance({
-      caption: content?.caption ?? '',
-      hashtags: content?.hashtags ?? [],
-      mediaCount: content?.media_asset_ids?.length ?? 0,
-      platform,
-      bannedWords,
-      scheduledAt: null,
-      now: new Date(),
-    });
-    for (const issue of result.issues) {
-      const key = `${issue.code}:${issue.detail}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      issues.push(issue);
-    }
-  }
-  return { ok: issues.length === 0, issues };
-}
+// The compliance gate (checkCardCompliance) and approval-freshness gate
+// (approvalIsStale) now live in ./compliance-check so the publish handler can
+// re-run them at send time too (UPGRADE_SPEC §5 / CLAUDE.md rule 1).
 
 // ---------- publish dispatcher (every 60s) ----------
+// Never auto-dispatch a card whose scheduled_at is older than this. A card
+// left 'scheduled' after a terminal publish failure would otherwise be
+// re-selected once retention (60d) deletes its errored ai_job — silently
+// republishing months-old content and double-posting. Stuck scheduled cards
+// past this window are surfaced by the missing-work detector, not auto-sent.
+const STALE_PUBLISH_MS = 14 * DAY_MS;
+
 async function dispatchScheduled(): Promise<void> {
   const now = new Date().toISOString();
+  const staleFloor = new Date(Date.now() - STALE_PUBLISH_MS).toISOString();
   const { data: due } = await db()
     .from('cards')
     .select('id, title, client_id, platforms')
     .eq('status', 'scheduled')
-    .lte('scheduled_at', now);
+    .lte('scheduled_at', now)
+    .gte('scheduled_at', staleFloor);
   if (!due?.length) return;
 
   const autoPublish = await mayAutoAct('publish');
@@ -219,6 +185,33 @@ async function dispatchScheduled(): Promise<void> {
           detail: { reason: 'no_approval' },
         });
         log.warn({ card_id: card.id }, 'publish blocked: no approval record');
+      }
+      continue;
+    }
+
+    // Approval-freshness gate (CLAUDE.md rule 1): block if the card's content
+    // was edited after it was approved — the approved text is no longer what
+    // would publish. Surfaces once as a suggestion + publish.blocked; the
+    // pending row dedupes later ticks.
+    if ((await approvalIsStale(card.id)).stale) {
+      const fresh = await insertSuggestion({
+        domain: 'missing_work',
+        title: `Onay bayat (içerik değişti): ${card.title}`,
+        body: { kind: 'info', reason: 'content_changed_after_approval' },
+        clientId: card.client_id,
+        cardId: card.id,
+        batched: true,
+      });
+      if (fresh) {
+        await logActivity('publish.blocked', {
+          clientId: card.client_id,
+          cardId: card.id,
+          detail: { reason: 'content_changed_after_approval' },
+        });
+        log.warn(
+          { card_id: card.id },
+          'publish blocked: content changed after approval',
+        );
       }
       continue;
     }
@@ -287,6 +280,7 @@ async function runPlanner(): Promise<void> {
     .select('id, name')
     .eq('active', true);
   let suggested = 0;
+  let planned = 0;
   for (const client of clients ?? []) {
     const { count } = await db()
       .from('cards')
@@ -303,6 +297,7 @@ async function runPlanner(): Promise<void> {
           kind: 'plan',
           payload: { client_id: client.id, week_start: weekStart },
         });
+      planned += 1;
     } else {
       // Suggest mode: one row per client; accepting it enqueues the plan job.
       const fresh = await insertSuggestion({
@@ -328,7 +323,14 @@ async function runPlanner(): Promise<void> {
       `📋 Haftalık plan önerileri hazır (${suggested} müşteri) — Öneriler kutusundan başlatın.`,
     );
   }
-  log.info({ auto }, 'weekly planner done');
+  // UPGRADE_SPEC §6: managers get the Monday digest in EVERY mode, not only
+  // suggest. In auto (semi/full) the plans are already enqueued — just inform.
+  if (auto && planned > 0) {
+    await managersAll(
+      `📋 Haftalık planlar hazırlanıyor (${planned} müşteri).`,
+    );
+  }
+  log.info({ auto, planned, suggested }, 'weekly planner done');
 }
 
 // ---------- Friday 17:00 reports ----------
@@ -368,33 +370,73 @@ async function computeClientMetrics(
         byPlatform[platform] = (byPlatform[platform] ?? 0) + 1;
   }
 
-  // Quota usage: published cards this month by type vs the active package.
-  const monthStart = fromZonedTime(
-    `${formatInTimeZone(new Date(), TZ, 'yyyy-MM')}-01T00:00:00`,
-    TZ,
-  );
+  // Quota usage — mirror lib/finance.ts monthlyUsage exactly so /finance and
+  // this report agree (the v2 audit found they diverged). Rules: publish.success
+  // logs (primary) + published cards by scheduled_at (fallback), deduped per
+  // card, filtered to QUOTA_TYPES; plus shoots done this month as 'shoot' usage.
+  const ym = formatInTimeZone(new Date(), TZ, 'yyyy-MM');
+  const monthStart = fromZonedTime(`${ym}-01T00:00:00`, TZ);
+  const [yy, mm] = ym.split('-').map(Number);
+  const nextYm =
+    mm === 12 ? `${yy + 1}-01` : `${yy}-${String(mm + 1).padStart(2, '0')}`;
+  const monthEnd = fromZonedTime(`${nextYm}-01T00:00:00`, TZ);
+  const monthStartIso = monthStart.toISOString();
+  const monthEndIso = monthEnd.toISOString();
+
+  const usedByType: Record<string, number> = {};
+  const countedCards = new Set<string>();
+  const bumpType = (type: string) => {
+    if (!(QUOTA_TYPES as readonly string[]).includes(type)) return;
+    usedByType[type] = (usedByType[type] ?? 0) + 1;
+  };
+
   const { data: monthPubs } = await db()
     .from('activity_log')
     .select('card_id')
     .eq('client_id', clientId)
     .eq('action', 'publish.success')
-    .gte('created_at', monthStart.toISOString());
-  const monthCardIds = [
+    .gte('created_at', monthStartIso)
+    .lt('created_at', monthEndIso);
+  const pubCardIds = [
     ...new Set(
       (monthPubs ?? [])
         .map((p) => p.card_id)
         .filter((id): id is string => !!id),
     ),
   ];
-  const usedByType: Record<string, number> = {};
-  if (monthCardIds.length) {
+  if (pubCardIds.length) {
     const { data: cards } = await db()
       .from('cards')
       .select('id, type')
-      .in('id', monthCardIds);
-    for (const card of cards ?? [])
-      usedByType[card.type] = (usedByType[card.type] ?? 0) + 1;
+      .in('id', pubCardIds);
+    for (const card of cards ?? []) {
+      if (countedCards.has(card.id)) continue;
+      countedCards.add(card.id);
+      bumpType(card.type);
+    }
   }
+  // Fallback: cards flipped to published without a publish.success log.
+  const { data: publishedCards } = await db()
+    .from('cards')
+    .select('id, type')
+    .eq('client_id', clientId)
+    .eq('status', 'published')
+    .gte('scheduled_at', monthStartIso)
+    .lt('scheduled_at', monthEndIso);
+  for (const card of publishedCards ?? []) {
+    if (countedCards.has(card.id)) continue;
+    countedCards.add(card.id);
+    bumpType(card.type);
+  }
+  // Shoots done this month → 'shoot' usage (absent from the old report path).
+  const { count: shootsDone } = await db()
+    .from('shoots')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', clientId)
+    .eq('status', 'done')
+    .gte('starts_at', monthStartIso)
+    .lt('starts_at', monthEndIso);
+  if (shootsDone) usedByType['shoot'] = shootsDone;
   const { data: packages } = await db()
     .from('client_packages')
     .select('name, monthly')
@@ -414,6 +456,18 @@ async function computeClientMetrics(
     return count ?? 0;
   };
 
+  // Ads summary (req 32 §7 rapor half): counts by status + total spend so the
+  // report LLM can mention advertising activity.
+  const { data: adRows } = await db()
+    .from('ad_tasks')
+    .select('status, budget')
+    .eq('client_id', clientId)
+    .neq('status', 'cancelled');
+  const adList = adRows ?? [];
+  const adSpend = adList
+    .filter((a) => a.status === 'active' || a.status === 'done')
+    .reduce((sum, a) => sum + (Number(a.budget) || 0), 0);
+
   return {
     publishes: { total: (weekPubs ?? []).length, by_platform: byPlatform },
     quota: {
@@ -424,6 +478,12 @@ async function computeClientMetrics(
     payments: {
       pending: await paymentCount('pending'),
       overdue: await paymentCount('overdue'),
+    },
+    ads: {
+      total: adList.length,
+      active: adList.filter((a) => a.status === 'active').length,
+      done: adList.filter((a) => a.status === 'done').length,
+      spend: adSpend,
     },
   };
 }
@@ -548,7 +608,11 @@ async function runDailyPlans(): Promise<void> {
     const myShoots = (shoots ?? []).filter((s) =>
       (s.crew ?? []).includes(profile.id),
     );
-    if (!myCards.length && !myShoots.length) continue;
+    const isManager = profile.role === 'admin' || profile.role === 'manager';
+    // Managers still get the client-coverage summary even with no personal
+    // tasks today (the old guard dropped it for a work-free manager).
+    if (!myCards.length && !myShoots.length && !(isManager && coverage))
+      continue;
 
     const lines = [`📋 Bugünün planı — ${dateLabel}`];
     if (myCards.length) {
@@ -586,7 +650,7 @@ async function runMissingWorkDetector(): Promise<void> {
   const now = new Date();
   const { day } = istanbulDay(now);
   const threeDaysAgo = new Date(now.getTime() - 3 * DAY_MS).toISOString();
-  const counts = { stuck: 0, shoots: 0, payments: 0, compliance: 0 };
+  const counts = { stuck: 0, shoots: 0, payments: 0, compliance: 0, ads: 0 };
 
   // 1. Stuck cards: in-flight statuses untouched for 3+ days.
   const { data: stuck } = await db()
@@ -680,11 +744,44 @@ async function runMissingWorkDetector(): Promise<void> {
     if (fresh) counts.compliance += 1;
   }
 
+  // 5. Ads needing attention (req 32 §7 hatırlatma): active past their end date
+  //    (wrap up + enter results) or finished with no results recorded.
+  const { data: adTasks } = await db()
+    .from('ad_tasks')
+    .select('id, objective, client_id, status, ends_on, results')
+    .in('status', ['active', 'done']);
+  for (const ad of adTasks ?? []) {
+    const endedActive =
+      ad.status === 'active' && ad.ends_on !== null && ad.ends_on < day;
+    const doneNoResults =
+      ad.status === 'done' &&
+      (!ad.results ||
+        Object.keys(ad.results as Record<string, unknown>).length === 0);
+    if (!endedActive && !doneNoResults) continue;
+    const reason = endedActive ? 'ad_ended' : 'ad_no_results';
+    const label = ad.objective || ad.id.slice(0, 8);
+    const fresh = await insertSuggestion({
+      domain: 'missing_work',
+      title: endedActive
+        ? `Reklam bitti, güncelle: ${label}`
+        : `Reklam sonucu girilmedi: ${label}`,
+      body: { kind: 'info', reason, ad_id: ad.id },
+      clientId: ad.client_id,
+      dedupeBody: { reason, ad_id: ad.id },
+      batched: true,
+    });
+    if (fresh) counts.ads += 1;
+  }
+
   const total =
-    counts.stuck + counts.shoots + counts.payments + counts.compliance;
+    counts.stuck +
+    counts.shoots +
+    counts.payments +
+    counts.compliance +
+    counts.ads;
   if (total > 0) {
     await managersAll(
-      `🔍 Eksik işler: ${total} yeni bulgu — takılı kart: ${counts.stuck}, çekim görevi: ${counts.shoots}, geciken ödeme: ${counts.payments}, uygunluk: ${counts.compliance}`,
+      `🔍 Eksik işler: ${total} yeni bulgu — takılı kart: ${counts.stuck}, çekim görevi: ${counts.shoots}, geciken ödeme: ${counts.payments}, uygunluk: ${counts.compliance}, reklam: ${counts.ads}`,
     );
   }
   log.info(counts, 'missing work detector done');

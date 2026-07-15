@@ -32,9 +32,13 @@ export default async function ReportsPage({
     .order('name');
   const clients = clientRows ?? [];
 
+  // Hide not-yet-written rows: the cron pre-creates a metrics-only report row
+  // before the LLM fills body_md, and in suggest mode / on AI failure that row
+  // can linger with an empty body — it must not render as a blank 'none' panel.
   let query = supabase
     .from('reports')
     .select('id, client_id, week_start, body_md, created_at, clients(name)')
+    .neq('body_md', '')
     .order('week_start', { ascending: false });
   if (client) query = query.eq('client_id', client);
 

@@ -23,8 +23,8 @@ import type {
 // ---------------------------------------------------------------------------
 
 /** Quota buckets tracked per package (client_packages.monthly jsonb). */
-export const QUOTA_TYPES = ['post', 'reel', 'story', 'shoot'] as const;
-export type QuotaType = (typeof QUOTA_TYPES)[number];
+import { QUOTA_TYPES, type QuotaType } from './quota-types';
+export { QUOTA_TYPES, type QuotaType };
 
 export type MonthlyQuota = Partial<Record<QuotaType, number>>;
 export type QuotaUsage = Record<QuotaType, number>;

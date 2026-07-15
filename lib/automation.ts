@@ -5,11 +5,15 @@
  * manual/suggestion-only. Approval remains human in every mode (hard rule 1).
  */
 
+// NOTE: 'compliance' is intentionally NOT a domain. The pre-publish compliance
+// gate is always-on (never auto-publish non-compliant content — hard rule 1),
+// so a suggest/semi/full toggle for it would be a no-op. The v2 audit flagged
+// the old 'compliance' control as dead; it was removed here. The seeded
+// automation_settings 'compliance' row (migration 0006) is now inert.
 export const AUTOMATION_DOMAINS = [
   'planner',
   'publish',
   'post_shoot',
-  'compliance',
   'reports',
 ] as const;
 export type AutomationDomain = (typeof AUTOMATION_DOMAINS)[number];
