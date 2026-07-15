@@ -107,15 +107,14 @@ Walkthrough: MANUAL_TEST.md._
 
 ## Section 4 — Product & housekeeping
 
-- [ ] **Merge the 16 stranded commits** on branch
-      `claude/agency-os-ios-planning-85e9c5` into `main`. _Why: `main` is BEHIND
-      this work — deploying from `main` as-is ships WITHOUT the security/reliability
-      audit fixes (publish-integrity, `activity_log` gaps, reports), the Tauri
-      desktop shell, and feature completions (poster button, ad reminders, kota
-      bars)._
-- [ ] **Design overhaul to "Ethereal Glass"** across dashboard / board / finance
-      / reports / manual / portal. _Why: consistent client-facing polish; in
-      progress separately._
+- [x] **Merge the 16 stranded commits** on branch
+      `claude/agency-os-ios-planning-85e9c5` into `main`. _Done 2026-07-15
+      (merge commit bae1181): publish-integrity + at-send compliance gates,
+      `activity_log` gap fixes, kota bars on the client page, poster button,
+      ad reminders, Kullanım Kılavuzu tab. `main` now carries v1+v2+v3 and
+      is the deploy branch. The old branch can be deleted._
+- [x] **Design overhaul to "Ethereal Glass"** across dashboard / board / finance
+      / reports / manual / portal. _Done — landed on main (65e31e5 + a61f575)._
 - [ ] **Deferred low-value audit findings** (do after go-live): M17 portal batch
       approve, M7 Postiz enumerate, L1 approve week-scoping, L6 dup suggestion.
       _Why: nice-to-have, not blockers._
