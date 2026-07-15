@@ -10,7 +10,6 @@
  * runs where the binaries exist.
  */
 
-import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,26 +20,11 @@ import { buildChain } from '../../../lib/ai/providers';
 import { runChain } from '../../../lib/ai/router';
 import type { AiJob } from '../../../lib/db/types';
 import { providerConfig } from '../ai-config';
+import { run } from '../cli';
+import { transcribe } from '../transcribe';
 import { db, logActivity } from '../supabase';
 import { getObject, putObject, r2Configured } from '../r2';
 import { log } from '../log';
-
-/** Shared with handlers/edit.ts — spawn a CLI, resolve stdout or throw. */
-export function run(cmd: string, args: string[]): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args);
-    let stdout = '';
-    let stderr = '';
-    proc.stdout.on('data', (d) => (stdout += d));
-    proc.stderr.on('data', (d) => (stderr += d));
-    proc.on('error', reject);
-    proc.on('close', (code) =>
-      code === 0
-        ? resolve(stdout)
-        : reject(new Error(`${cmd} exited ${code}: ${stderr.slice(0, 300)}`)),
-    );
-  });
-}
 
 export interface Probe {
   durationS: number;
@@ -70,31 +54,6 @@ export async function ffprobe(path: string): Promise<Probe> {
     width: video?.width,
     height: video?.height,
   };
-}
-
-/** faster-whisper CLI → word-level segments. Shape: [{word,start,end}]. */
-export async function transcribe(path: string, model: string): Promise<Word[]> {
-  const out = await run('faster-whisper-cli', [
-    path,
-    '--model',
-    model,
-    '--word_timestamps',
-    'True',
-    '--output_format',
-    'json',
-  ]);
-  const json = JSON.parse(out) as {
-    segments?: Array<{
-      words?: Array<{ word: string; start: number; end: number }>;
-    }>;
-  };
-  const words: Word[] = [];
-  for (const seg of json.segments ?? []) {
-    for (const w of seg.words ?? []) {
-      words.push({ text: w.word.trim(), start: w.start, end: w.end });
-    }
-  }
-  return words;
 }
 
 async function translateWords(
@@ -221,10 +180,7 @@ export async function handleRenderReel(job: AiJob) {
       }
     }
 
-    const trWords = await transcribe(
-      srcPath,
-      process.env.WHISPER_MODEL ?? 'small',
-    );
+    const trWords = await transcribe(srcPath);
     const outputs: Array<{ lang: string; assetId: string }> = [];
 
     const trBuf = await renderOne(

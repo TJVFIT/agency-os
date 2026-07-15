@@ -51,8 +51,11 @@ required before Phase 1; Part B before Phase 3; Part C before Phase 4.
     Postiz from its docker-compose. Point a free DuckDNS subdomain or a
     ~$10/yr domain at the box; Coolify handles TLS.
 13. **Box packages** (worker Dockerfile should install these; verify ARM):
-    ffmpeg, python3 + `pip install rembg faster-whisper`, fonts
-    (fonts-noto-core covers Turkish glyphs for subtitles).
+    ffmpeg, python3 + `pip install rembg whisperx` (WhisperX bundles the
+    faster-whisper backend and adds wav2vec2 word alignment — Turkish model
+    auto-downloads on first run), fonts (fonts-noto-core covers Turkish
+    glyphs for subtitles). First transcription downloads ~1 GB of models;
+    benchmark a 30–60s reel before inviting the team.
 14. **Postiz** — open its UI, create the agency workspace, connect each
     client's Instagram/Facebook/TikTok. This is the tedious one: Postiz
     self-hosted requires creating your own developer app per platform

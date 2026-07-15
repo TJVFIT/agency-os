@@ -25,9 +25,11 @@ import {
 } from '../../lib/edit-video';
 import type { Word } from '../../lib/ass';
 import { providerConfig } from '../ai-config';
+import { run } from '../cli';
+import { transcribe } from '../transcribe';
 import { db, logActivity } from '../supabase';
 import { getObject, putObject, r2Configured } from '../r2';
-import { ffprobe, run, transcribe } from './reel';
+import { ffprobe } from './reel';
 import { log } from '../log';
 
 const ROUTER_DEPS = {
@@ -162,7 +164,7 @@ export async function handleEditVideo(job: AiJob) {
     if (spec.overlays.length > 0 || spec.subtitles) {
       let words: Word[] = [];
       if (spec.subtitles && compiled.hasAudio) {
-        words = await transcribe(stage1, process.env.WHISPER_MODEL ?? 'small');
+        words = await transcribe(stage1);
       }
       if (words.length > 0 || spec.overlays.length > 0) {
         const assPath = join(dir, 'burn.ass');

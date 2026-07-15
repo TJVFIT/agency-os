@@ -1,5 +1,5 @@
 # Worker image (SPEC §14). ARM-friendly; includes the media toolchain
-# (ffmpeg, rembg, faster-whisper) + Turkish-capable fonts for subtitles.
+# (ffmpeg, rembg, WhisperX) + Turkish-capable fonts for subtitles.
 FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
@@ -12,9 +12,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-noto-core fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
 
-# rembg + faster-whisper in an isolated venv (avoids PEP 668 issues).
+# rembg + WhisperX in an isolated venv (avoids PEP 668 issues). WhisperX
+# bundles the faster-whisper backend and adds wav2vec2 forced alignment for
+# word-accurate karaoke subtitle timing (Turkish align model auto-selected).
+# CPU-only torch wheels keep the aarch64 image lean (no CUDA payload).
 RUN python3 -m venv /opt/pyenv \
-    && /opt/pyenv/bin/pip install --no-cache-dir rembg faster-whisper
+    && /opt/pyenv/bin/pip install --no-cache-dir \
+         --extra-index-url https://download.pytorch.org/whl/cpu \
+         rembg whisperx
 ENV PATH="/opt/pyenv/bin:$PATH"
 
 WORKDIR /app

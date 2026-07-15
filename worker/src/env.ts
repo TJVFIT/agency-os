@@ -46,6 +46,11 @@ const workerSchema = z.object({
   POSTIZ_URL: z.url().optional(),
   POSTIZ_API_KEY: z.string().optional(),
   WHISPER_MODEL: z.enum(['small', 'base']).default('small'),
+  // v3: WhisperX (wav2vec2 word alignment) with faster-whisper-cli fallback.
+  TRANSCRIBE_ENGINE: z
+    .enum(['whisperx', 'faster-whisper'])
+    .default('whisperx'),
+  WHISPER_LANGUAGE: z.string().default('tr'),
   TZ: z.string().default('Europe/Istanbul'),
 
   // v2 (UPGRADE_SPEC §8, §4) — web push + optional poster provider

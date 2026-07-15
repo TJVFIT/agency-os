@@ -32,7 +32,7 @@ half — not new features.**
       scenario until these exist. Free tier. (SETUP.md steps 4–6)_
 - [ ] **Stand up the worker on a box** — Oracle Cloud Always-Free Ampere A1
       (2 OCPU / 12 GB, Ubuntu 24.04 aarch64) + Coolify; deploy the `worker`
-      app from `worker/Dockerfile` (bundles ffmpeg + rembg + faster-whisper +
+      app from `worker/Dockerfile` (bundles ffmpeg + rembg + WhisperX +
       Noto fonts). _Why: the entire async half is dormant until this runs — AI
       job queue, media pipeline (image variants, reels), Telegram bot, publish
       dispatcher, cron, notifications. The fiddly afternoon. (SETUP.md Part C

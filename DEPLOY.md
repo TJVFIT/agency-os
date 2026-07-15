@@ -10,7 +10,7 @@ Reference for standing the stack up. Human prerequisites are in SETUP.md
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`,
   and the R2 vars (for presigned uploads).
 - **worker** — long-running Node process. Build with `worker/Dockerfile`
-  (bundles ffmpeg + rembg + faster-whisper + Noto fonts). Runs the ai_jobs
+  (bundles ffmpeg + rembg + WhisperX + Noto fonts). Runs the ai_jobs
   loop, media/reel pipeline, Telegram bot, publish dispatcher, cron, and the
   notification dispatcher. Needs the full env (SETUP.md Parts A–C).
 - **Postiz** — its own docker-compose (SETUP.md Part C). Reachable from the

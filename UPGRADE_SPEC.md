@@ -167,6 +167,17 @@ report roll-up (§7).
 - **Portal "Durum" tab** — read-only pipeline grouped by status.
 - **Portal "Bilgiler" tab** — client maintains `clients.contact`
   (clientContactSchema); shown read-only on the client page.
+- **Transcription engine: WhisperX** (2026-07-15, from the verified OSS
+  research). Same faster-whisper backend, plus wav2vec2 forced alignment
+  for word-accurate karaoke timing; Turkish align model auto-selected via
+  `WHISPER_LANGUAGE=tr`. `worker/src/transcribe.ts` owns the engine
+  (whisperx CLI → JSON out-dir; falls back to faster-whisper-cli when the
+  binary is absent, or set `TRANSCRIBE_ENGINE=faster-whisper`);
+  `worker/lib/transcript.ts` parses both engines' JSON, merging words the
+  aligner cannot time (digits/symbols) into a timed neighbor. This also
+  fixes a latent gap: the old image installed the `faster-whisper` library
+  but the code shelled a `faster-whisper-cli` binary that pip package never
+  provided — whisperx ships a real CLI entrypoint.
 
 ## 11. New env
 
