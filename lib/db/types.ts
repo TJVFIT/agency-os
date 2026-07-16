@@ -186,6 +186,35 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_actions: {
         Row: {
           approval_link_id: string
@@ -333,6 +362,38 @@ export type Database = {
           },
         ]
       }
+      assistant_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          profile_id: string
+          role: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          profile_id: string
+          role: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_settings: {
         Row: {
           key: string
@@ -420,6 +481,7 @@ export type Database = {
           scheduled_at: string | null
           status: Database["public"]["Enums"]["card_status"]
           tags: string[]
+          task_type_id: string | null
           title: string
           type: Database["public"]["Enums"]["card_type"]
           updated_at: string
@@ -436,6 +498,7 @@ export type Database = {
           scheduled_at?: string | null
           status?: Database["public"]["Enums"]["card_status"]
           tags?: string[]
+          task_type_id?: string | null
           title: string
           type?: Database["public"]["Enums"]["card_type"]
           updated_at?: string
@@ -452,6 +515,7 @@ export type Database = {
           scheduled_at?: string | null
           status?: Database["public"]["Enums"]["card_status"]
           tags?: string[]
+          task_type_id?: string | null
           title?: string
           type?: Database["public"]["Enums"]["card_type"]
           updated_at?: string
@@ -476,6 +540,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cards_task_type_id_fkey"
+            columns: ["task_type_id"]
+            isOneToOne: false
+            referencedRelation: "task_types"
             referencedColumns: ["id"]
           },
         ]
@@ -755,6 +826,7 @@ export type Database = {
           location: Json
           logo_asset_id: string | null
           name: string
+          shoot_block_minutes: number | null
           slug: string
         }
         Insert: {
@@ -771,6 +843,7 @@ export type Database = {
           location?: Json
           logo_asset_id?: string | null
           name: string
+          shoot_block_minutes?: number | null
           slug: string
         }
         Update: {
@@ -787,6 +860,7 @@ export type Database = {
           location?: Json
           logo_asset_id?: string | null
           name?: string
+          shoot_block_minutes?: number | null
           slug?: string
         }
         Relationships: [
@@ -844,6 +918,47 @@ export type Database = {
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          notes: string
+          serial: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          kind?: string
+          name: string
+          notes?: string
+          serial?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          notes?: string
+          serial?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]
@@ -1050,6 +1165,7 @@ export type Database = {
           created_by: string | null
           crew: string[]
           ends_at: string
+          equipment_ids: string[]
           id: string
           location: Json
           starts_at: string
@@ -1067,6 +1183,7 @@ export type Database = {
           created_by?: string | null
           crew?: string[]
           ends_at: string
+          equipment_ids?: string[]
           id?: string
           location?: Json
           starts_at: string
@@ -1084,6 +1201,7 @@ export type Database = {
           created_by?: string | null
           crew?: string[]
           ends_at?: string
+          equipment_ids?: string[]
           id?: string
           location?: Json
           starts_at?: string
@@ -1220,6 +1338,63 @@ export type Database = {
           },
         ]
       }
+      task_types: {
+        Row: {
+          active: boolean
+          auto_open: boolean
+          created_at: string
+          default_assignee: string | null
+          default_minutes: number
+          depends_on: string | null
+          id: string
+          name: string
+          priority: number
+          requires_review: boolean
+          workload_points: number
+        }
+        Insert: {
+          active?: boolean
+          auto_open?: boolean
+          created_at?: string
+          default_assignee?: string | null
+          default_minutes?: number
+          depends_on?: string | null
+          id?: string
+          name: string
+          priority?: number
+          requires_review?: boolean
+          workload_points?: number
+        }
+        Update: {
+          active?: boolean
+          auto_open?: boolean
+          created_at?: string
+          default_assignee?: string | null
+          default_minutes?: number
+          depends_on?: string | null
+          id?: string
+          name?: string
+          priority?: number
+          requires_review?: boolean
+          workload_points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_types_default_assignee_fkey"
+            columns: ["default_assignee"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_types_depends_on_fkey"
+            columns: ["depends_on"]
+            isOneToOne: false
+            referencedRelation: "task_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_link_codes: {
         Row: {
           code: string
@@ -1249,32 +1424,91 @@ export type Database = {
           },
         ]
       }
+      vehicle_blocks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_on: string
+          id: string
+          reason: string
+          starts_on: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_on: string
+          id?: string
+          reason?: string
+          starts_on: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_on?: string
+          id?: string
+          reason?: string
+          starts_on?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_blocks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_blocks_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           active: boolean
           capacity: number
           created_at: string
+          driver: string | null
           id: string
           name: string
+          notes: string
           plate: string
         }
         Insert: {
           active?: boolean
           capacity?: number
           created_at?: string
+          driver?: string | null
           id?: string
           name: string
+          notes?: string
           plate?: string
         }
         Update: {
           active?: boolean
           capacity?: number
           created_at?: string
+          driver?: string | null
           id?: string
           name?: string
+          notes?: string
           plate?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_driver_fkey"
+            columns: ["driver"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1341,6 +1575,7 @@ export type Database = {
         | "compliance"
         | "edit_video"
         | "edit_photo"
+        | "chat"
       job_status: "queued" | "running" | "done" | "error"
       message_sender: "team" | "client"
       payment_kind: "package" | "extra"
@@ -1498,6 +1733,11 @@ export type AutomationSetting = Tables<'automation_settings'>;
 export type Suggestion = Tables<'suggestions'>;
 export type PushSubscription = Tables<'push_subscriptions'>;
 export type ClientMessage = Tables<'client_messages'>;
+export type AppSetting = Tables<'app_settings'>;
+export type AssistantMessage = Tables<'assistant_messages'>;
+export type Equipment = Tables<'equipment'>;
+export type TaskType = Tables<'task_types'>;
+export type VehicleBlock = Tables<'vehicle_blocks'>;
 
 export const PLATFORMS = [
   'instagram',
@@ -1545,6 +1785,7 @@ export const Constants = {
         "compliance",
         "edit_video",
         "edit_photo",
+        "chat",
       ],
       job_status: ["queued", "running", "done", "error"],
       message_sender: ["team", "client"],
