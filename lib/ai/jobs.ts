@@ -6,7 +6,9 @@
  */
 
 import {
+  ASSISTANT_SYSTEM,
   CAPTION_SYSTEM,
+  CHAT_SYSTEM,
   EDIT_PHOTO_SYSTEM,
   EDIT_VIDEO_SYSTEM,
   IDEA_REFINE_SYSTEM,
@@ -19,7 +21,9 @@ import {
   renderPrompt,
 } from './prompts';
 import {
+  assistantResultSchema,
   captionResultSchema,
+  chatResultSchema,
   ideaRefineResultSchema,
   photoEditSpecSchema,
   plannerResultSchema,
@@ -29,7 +33,7 @@ import {
   translateResultSchema,
   videoEditSpecSchema,
 } from './schemas';
-import type { DraftingKind } from './providers';
+import type { ChainKind } from './providers';
 import type { ZodType } from 'zod';
 
 const USER_NUDGE = 'Return the JSON now.';
@@ -38,8 +42,9 @@ export interface BuiltPrompt<T> {
   system: string;
   user: string;
   schema: ZodType<T>;
-  /** Which provider chain to use (translate gets its own key group). */
-  chainKind: DraftingKind | 'translate';
+  /** Which provider chain to use (translate gets its own key group,
+   * chat gets the open-model-first chain). */
+  chainKind: ChainKind;
 }
 
 export interface BrandContext {
@@ -165,6 +170,56 @@ export function buildScenarioPrompt(
     user: USER_NUDGE,
     schema: scenarioResultSchema,
     chainKind: 'plan' as const,
+  };
+}
+
+/** Assistant chat turn (v4 `chat` job kind). History is prior turns as
+ * [{role,body}] oldest-first; the latest user message becomes the user turn. */
+export function buildAssistantPrompt(
+  ctx: {
+    profileName: string;
+    today: string;
+    cardsJson: string;
+    historyJson: string;
+  },
+  message: string,
+) {
+  return {
+    system: renderPrompt(ASSISTANT_SYSTEM, {
+      profile_name: ctx.profileName,
+      today: ctx.today,
+      cards_json: ctx.cardsJson,
+      history_json: ctx.historyJson,
+    }),
+    user: message,
+    schema: assistantResultSchema,
+    // Drafting-family chain (KEY_A) — 'plan' picks the same providers.
+    chainKind: 'plan' as const,
+  };
+}
+
+/** Hard cap on the user-turn slice — mirrors sendAssistantMessage's zod max
+ * so a hand-enqueued oversized payload can't blow the prompt budget. */
+const CHAT_MESSAGE_MAX = 2000;
+
+/** Staff assistant chat turn on the dedicated open-model 'chat' chain
+ * (v4, migration 0010). `contextJson` = {name, role, today, open_cards,
+ * todays_shoots}; `historyJson` = prior turns [{role,body}] oldest-first;
+ * `message` = the user turn being answered. Supersedes buildAssistantPrompt
+ * (which rode the drafting chain). */
+export function buildChatPrompt(
+  contextJson: string,
+  historyJson: string,
+  message: string,
+) {
+  return {
+    system: renderPrompt(CHAT_SYSTEM, {
+      context_json: contextJson,
+      history_json: historyJson,
+    }),
+    user: message.slice(0, CHAT_MESSAGE_MAX),
+    schema: chatResultSchema,
+    chainKind: 'chat' as const,
   };
 }
 

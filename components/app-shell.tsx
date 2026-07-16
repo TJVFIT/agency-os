@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { AssistantRoot } from '@/components/assistant';
 import { PwaInstall } from '@/components/pwa-install';
 import { tr } from '@/lib/i18n/tr';
 import type { Profile } from '@/lib/db/types';
@@ -101,6 +102,10 @@ export function AppShell({
       </main>
 
       <div className="hidden shrink-0 lg:block">{feed}</div>
+
+      {/* Internal AI assistant — authenticated app only. The demo shell
+          (/preview) overrides navItems and has no Supabase session. */}
+      {navItems === NAV_ITEMS && <AssistantRoot profileId={profile.id} />}
     </div>
   );
 }

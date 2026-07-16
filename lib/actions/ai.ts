@@ -62,6 +62,14 @@ const editPhotoPayload = z.object({
   prompt: z.string().min(1).max(1000),
 });
 
+// v4 assistant chat (migration 0010) — handled in worker/src/handlers/chat.ts.
+// Enqueue through lib/actions/assistant.ts sendAssistantMessage, which pins
+// profile_id to the session user and inserts the message row first.
+const chatPayload = z.object({
+  profile_id: z.uuid(),
+  message_id: z.uuid(),
+});
+
 const KIND_SCHEMAS = {
   caption: captionPayload,
   translate: translatePayload,
@@ -72,6 +80,7 @@ const KIND_SCHEMAS = {
   compliance: compliancePayload,
   edit_video: editVideoPayload,
   edit_photo: editPhotoPayload,
+  chat: chatPayload,
 } as const;
 
 export type EnqueueableKind = keyof typeof KIND_SCHEMAS;

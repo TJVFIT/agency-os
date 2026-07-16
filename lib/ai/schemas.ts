@@ -66,6 +66,19 @@ export const ideaRefineResultSchema = z.object({
 });
 export type IdeaRefineResult = z.infer<typeof ideaRefineResultSchema>;
 
+/** Assistant chat reply (v4 `chat` job kind, migration 0010). */
+export const assistantResultSchema = z.object({
+  reply: z.string().min(1),
+});
+export type AssistantResult = z.infer<typeof assistantResultSchema>;
+
+/** Staff assistant reply for the dedicated open-model `chat` chain — pairs
+ * with CHAT_SYSTEM's `Return ONLY JSON: {"reply":string}` contract. */
+export const chatResultSchema = z.object({
+  reply: z.string().min(1),
+});
+export type ChatResult = z.infer<typeof chatResultSchema>;
+
 export const scenarioResultSchema = z.object({
   scenario: z.string(),
   shot_list: z.array(z.string()),

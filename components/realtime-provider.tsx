@@ -16,7 +16,13 @@ import {
 } from 'react';
 
 import { createSupabaseBrowser } from '@/lib/supabase/client';
-import type { ActivityEntry, AiJob, Card, ClientMessage } from '@/lib/db/types';
+import type {
+  ActivityEntry,
+  AiJob,
+  AssistantMessage,
+  Card,
+  ClientMessage,
+} from '@/lib/db/types';
 
 export type RealtimeEvents = {
   'activity.insert': ActivityEntry;
@@ -27,6 +33,7 @@ export type RealtimeEvents = {
   };
   'ai_jobs.update': AiJob;
   'client_messages.insert': ClientMessage;
+  'assistant_messages.insert': AssistantMessage;
 };
 
 type Handler<E extends keyof RealtimeEvents> = (
@@ -93,6 +100,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'client_messages' },
         (payload) => bus.emit('client_messages.insert', payload.new),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'assistant_messages' },
+        (payload) => bus.emit('assistant_messages.insert', payload.new),
       )
       .subscribe();
 
