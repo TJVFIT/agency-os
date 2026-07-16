@@ -6,6 +6,7 @@ import { Button, Field, Input, Textarea } from '@/components/ui';
 import { tr } from '@/lib/i18n/tr';
 import type { ClientContact } from '@/lib/db/domain';
 import { submitPortalContact } from './actions';
+import { Bezel, StatusNote } from './glass';
 
 const FIELDS = [
   'phone',
@@ -45,8 +46,10 @@ export function InfoTab({
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5">
-      <p className="text-xs text-neutral-400">{tr.portal.infoHint}</p>
+    <Bezel innerClassName="space-y-3 p-3.5">
+      <p className="text-xs leading-relaxed text-neutral-400">
+        {tr.portal.infoHint}
+      </p>
       {FIELDS.map((field) => (
         <Field key={field} label={tr.portal.contactFields[field]}>
           <Input
@@ -71,16 +74,8 @@ export function InfoTab({
       >
         {pending ? tr.common.loading : tr.common.save}
       </Button>
-      {saved && (
-        <p className="animate-enter rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1.5 text-center text-xs text-emerald-200">
-          {tr.portal.infoSaved}
-        </p>
-      )}
-      {error && (
-        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-center text-xs text-red-300">
-          {tr.common.error}
-        </p>
-      )}
-    </div>
+      {saved && <StatusNote tone="success">{tr.portal.infoSaved}</StatusNote>}
+      {error && <StatusNote tone="error">{tr.common.error}</StatusNote>}
+    </Bezel>
   );
 }

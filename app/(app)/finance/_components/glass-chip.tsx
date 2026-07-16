@@ -40,7 +40,7 @@ export function GlassChip({
   const c = TONES[tone];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${c.chip}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${c.chip}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
       {children}

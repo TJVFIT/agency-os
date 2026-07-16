@@ -38,6 +38,16 @@ export async function listProfiles(): Promise<Profile[]> {
   return data;
 }
 
+/** Dynamic task types (v4 §6) — settings manager + card görev türü select. */
+export async function listTaskTypes(opts?: { activeOnly?: boolean }) {
+  const supabase = await createSupabaseServer();
+  let q = supabase.from('task_types').select('*').order('name');
+  if (opts?.activeOnly) q = q.eq('active', true);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
 export interface CardFilters {
   clientId?: string;
   assignee?: string;

@@ -90,7 +90,7 @@ export function BrandProfileEditor({
           onChange={setSignatureItems}
         />
 
-        <label className="flex items-center gap-2">
+        <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 transition-colors duration-300 hover:border-white/[0.12]">
           <input
             type="checkbox"
             checked={emojiOk}

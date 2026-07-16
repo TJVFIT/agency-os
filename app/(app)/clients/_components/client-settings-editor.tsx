@@ -26,6 +26,7 @@ export function ClientSettingsEditor({
   active: initialActive,
   colors: initialColors,
   location: initialLocation,
+  shootBlockMinutes: initialShootBlock,
 }: {
   clientId: string;
   name: string;
@@ -34,6 +35,8 @@ export function ClientSettingsEditor({
   active: boolean;
   colors: ClientColors;
   location: ClientLocation;
+  /** Çekim bloğu override (v4); null = app_settings global applies. */
+  shootBlockMinutes: number | null;
 }) {
   const [name, setName] = useState(initialName);
   const [industry, setIndustry] = useState(initialIndustry);
@@ -52,6 +55,9 @@ export function ClientSettingsEditor({
     typeof initialLocation?.lng === 'number' ? String(initialLocation.lng) : '',
   );
   const [district, setDistrict] = useState(initialLocation?.district ?? '');
+  const [shootBlock, setShootBlock] = useState(
+    initialShootBlock != null ? String(initialShootBlock) : '',
+  );
   const [state, setState] = useState<SaveState>('idle');
   const [pending, startTransition] = useTransition();
 
@@ -74,6 +80,7 @@ export function ClientSettingsEditor({
       lng.trim() !== '' &&
       !Number.isNaN(latNum) &&
       !Number.isNaN(lngNum);
+    const shootBlockTrim = shootBlock.trim();
     startTransition(async () => {
       const res = await updateClientAction({
         clientId,
@@ -89,6 +96,9 @@ export function ClientSettingsEditor({
               ...(district.trim() && { district: district.trim() }),
             }
           : null,
+        // Empty input clears the override → the global block applies.
+        shootBlockMinutes:
+          shootBlockTrim === '' ? null : Number(shootBlockTrim),
       });
       setState(res.ok ? 'saved' : 'error');
     });
@@ -135,10 +145,10 @@ export function ClientSettingsEditor({
                 key={l}
                 type="button"
                 onClick={() => toggleLang(l)}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium uppercase transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                className={`rounded-full border px-3.5 py-1.5 text-xs font-medium uppercase tracking-[0.08em] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
                   langs.includes(l)
-                    ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200'
-                    : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/20'
+                    ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                    : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/20 hover:text-neutral-300'
                 }`}
               >
                 {l}
@@ -187,17 +197,15 @@ export function ClientSettingsEditor({
         </div>
 
         <div>
-          <span className="mb-1 block text-xs font-medium text-neutral-400">
-            {tr.production.location}
-          </span>
-          <div className="grid grid-cols-3 gap-2">
+          <Label>{tr.production.location}</Label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <Field label={tr.production.lat}>
               <Input
                 value={lat}
                 onChange={(e) => setLat(e.target.value)}
                 inputMode="decimal"
                 placeholder="39.92"
-                className="font-mono"
+                className="font-mono tabular-nums"
               />
             </Field>
             <Field label={tr.production.lng}>
@@ -206,23 +214,43 @@ export function ClientSettingsEditor({
                 onChange={(e) => setLng(e.target.value)}
                 inputMode="decimal"
                 placeholder="32.85"
-                className="font-mono"
+                className="font-mono tabular-nums"
               />
             </Field>
-            <Field label={tr.production.district}>
-              <Input
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-                maxLength={120}
-              />
-            </Field>
+            <div className="col-span-2 sm:col-span-1">
+              <Field label={tr.production.district}>
+                <Input
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  maxLength={120}
+                />
+              </Field>
+            </div>
           </div>
           <p className="mt-1 text-[11px] text-neutral-500">
             {tr.production.locationHint}
           </p>
         </div>
 
-        <label className="flex items-center gap-2">
+        <div>
+          <Field label={tr.opsSettings.shootBlockClient}>
+            <Input
+              type="number"
+              min={30}
+              max={720}
+              step={5}
+              value={shootBlock}
+              onChange={(e) => setShootBlock(e.target.value)}
+              placeholder="210"
+              className="w-32 tabular-nums"
+            />
+          </Field>
+          <p className="mt-1 text-[11px] text-neutral-500">
+            {tr.opsSettings.shootBlockHint}
+          </p>
+        </div>
+
+        <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 transition-colors duration-300 hover:border-white/[0.12]">
           <input
             type="checkbox"
             checked={active}

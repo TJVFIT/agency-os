@@ -4,6 +4,7 @@ import { Panel } from '@/components/ui';
 import { loadPortalView } from '@/lib/portal/service';
 import { tr } from '@/lib/i18n/tr';
 import { PortalClient } from './portal-client';
+import { Orb } from './glass';
 
 // UPGRADE_SPEC §2: token in URL only — never index (same as /approve).
 export const metadata: Metadata = {
@@ -26,12 +27,7 @@ export default async function PortalPage({
         <div className="animate-enter w-full max-w-sm">
           <Panel>
             <div className="flex flex-col items-center gap-4 py-6 text-center">
-              <span
-                aria-hidden
-                className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-              >
-                🔒
-              </span>
+              <Orb className="!h-14 !w-14 !text-2xl">🔒</Orb>
               <div className="space-y-1.5">
                 <h1 className="text-sm font-semibold tracking-tight text-neutral-100">
                   {tr.portal.title}

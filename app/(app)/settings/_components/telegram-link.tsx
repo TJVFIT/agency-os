@@ -41,21 +41,33 @@ export function TelegramLink({ linked }: { linked: boolean }) {
       </span>
 
       {code ? (
-        <div className="animate-enter rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
-          <Label>{tr.settings.telegramCode}</Label>
-          <code className="mt-1 block font-mono text-lg tracking-widest text-neutral-100">
+        <div className="animate-enter relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_24px_-14px_rgba(0,0,0,0.6)]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(16rem_8rem_at_50%_-2rem,rgba(129,140,248,0.12),transparent_70%)]"
+          />
+          <Label className="relative">{tr.settings.telegramCode}</Label>
+          <code className="relative mt-1 block font-mono text-2xl font-semibold tabular-nums tracking-[0.3em] text-neutral-50">
             {code}
           </code>
-          <p className="mt-2 text-xs leading-relaxed text-neutral-400">
+          <p className="relative mt-2 border-t border-white/[0.06] pt-2 text-xs leading-relaxed text-neutral-400">
             {interpolate(tr.settings.telegramCodeHelp, { code })}
           </p>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button type="button" onClick={onClick} disabled={pending}>
             {pending ? tr.common.processing : tr.settings.generateCode}
           </Button>
-          {err && <span className="text-xs text-red-400">{err}</span>}
+          {err && (
+            <span className="animate-enter inline-flex items-center gap-1.5 rounded-full border border-red-500/25 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-200">
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]"
+              />
+              {err}
+            </span>
+          )}
         </div>
       )}
     </div>

@@ -54,32 +54,43 @@ export function Comments({
 
   return (
     <Panel title={tr.card.comments}>
-      <ul className="divide-y divide-white/[0.06]">
-        {comments.length === 0 && (
-          <li className="text-sm text-neutral-500">{tr.card.noComments}</li>
-        )}
-        {comments.map((c) => {
-          const name = authorName(c);
-          return (
-            <li key={c.id} className="flex gap-2.5 py-3 text-sm first:pt-0">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[10px] font-semibold text-neutral-300">
-                {initials(name)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="mb-0.5 flex items-baseline gap-2">
-                  <span className="font-medium text-neutral-200">{name}</span>
-                  <span className="text-xs text-neutral-600">
-                    {fmtIstanbul(c.created_at)}
-                  </span>
+      {comments.length === 0 ? (
+        <div className="animate-enter flex flex-col items-center gap-2.5 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center">
+          <span
+            aria-hidden
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          >
+            💬
+          </span>
+          <p className="text-xs text-neutral-500">{tr.card.noComments}</p>
+        </div>
+      ) : (
+        <ul className="stagger-children divide-y divide-white/[0.06]">
+          {comments.map((c) => {
+            const name = authorName(c);
+            return (
+              <li key={c.id} className="flex gap-2.5 py-3 text-sm first:pt-0">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[10px] font-semibold text-neutral-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                  {initials(name)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-0.5 flex flex-wrap items-baseline gap-x-2">
+                    <span className="truncate font-medium text-neutral-200">
+                      {name}
+                    </span>
+                    <span className="text-xs tabular-nums text-neutral-600">
+                      {fmtIstanbul(c.created_at)}
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap break-words leading-relaxed text-neutral-300">
+                    {c.body}
+                  </p>
                 </div>
-                <p className="whitespace-pre-wrap text-neutral-300">
-                  {c.body}
-                </p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-4">
         <Textarea
@@ -91,7 +102,11 @@ export function Comments({
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
           }}
         />
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <p className="animate-enter inline-block rounded-lg border border-red-500/25 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-200">
+            {error}
+          </p>
+        )}
         <div className="flex justify-end">
           <Button
             type="button"

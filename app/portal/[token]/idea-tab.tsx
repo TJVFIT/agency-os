@@ -7,6 +7,7 @@ import { tr } from '@/lib/i18n/tr';
 import { fmtIstanbulDate } from '@/lib/dates';
 import type { PortalIdea } from '@/lib/portal/service';
 import { submitPortalIdea } from './actions';
+import { Bezel, ROW, SectionLabel, StatusNote } from './glass';
 
 const STATUS_CHIP: Record<PortalIdea['status'], string> = {
   new: 'border-white/10 bg-white/[0.05] text-neutral-300',
@@ -51,12 +52,12 @@ export function IdeaTab({
   return (
     <div className="space-y-4">
       {sent && (
-        <p className="animate-enter rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center text-sm text-emerald-200">
+        <StatusNote tone="success" className="!rounded-xl !p-4 !text-sm">
           {tr.portal.ideaSent}
-        </p>
+        </StatusNote>
       )}
 
-      <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <Bezel innerClassName="space-y-3 p-3.5">
         <Field label={tr.portal.ideaTitle}>
           <Input
             value={title}
@@ -86,29 +87,25 @@ export function IdeaTab({
         >
           {pending ? tr.common.loading : tr.portal.tabs.ideas}
         </Button>
-        {error && (
-          <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-center text-xs text-red-300">
-            {tr.common.error}
-          </p>
-        )}
-      </div>
+        {error && <StatusNote tone="error">{tr.common.error}</StatusNote>}
+      </Bezel>
 
       {ideas.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+          <SectionLabel count={ideas.length}>
             {tr.portal.ideasInbox}
-          </h3>
+          </SectionLabel>
           <ul className="stagger-children space-y-2">
             {ideas.map((idea) => (
               <li
                 key={idea.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
+                className={`flex items-center justify-between gap-2 px-3 py-2.5 ${ROW}`}
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-neutral-100">
                     {idea.title}
                   </p>
-                  <p className="text-[11px] text-neutral-500">
+                  <p className="text-[11px] tabular-nums text-neutral-500">
                     {fmtIstanbulDate(idea.createdAt)}
                   </p>
                 </div>

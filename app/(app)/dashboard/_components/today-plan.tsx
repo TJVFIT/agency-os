@@ -4,6 +4,8 @@ import { fmtIstanbulDate, fmtIstanbulTime } from '@/lib/dates';
 import { tr } from '@/lib/i18n/tr';
 import type { CardWithClient } from '@/lib/db/queries';
 
+import { EmptyState, SectionLabel } from './ui-bits';
+
 export interface TodayShootItem {
   id: string;
   title: string;
@@ -29,7 +31,7 @@ export function TodayPlan({
 }) {
   if (cards.length === 0 && shoots.length === 0) {
     return (
-      <p className="text-sm text-neutral-500">{tr.dashboard.myQueueEmpty}</p>
+      <EmptyState icon="✓" tone="emerald" text={tr.dashboard.myQueueEmpty} />
     );
   }
 
@@ -46,11 +48,11 @@ export function TodayPlan({
             return (
               <li
                 key={card.id}
-                className="group flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.12] hover:bg-white/[0.05]"
+                className="group flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.12] hover:bg-white/[0.05] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_-12px_rgba(0,0,0,0.7)]"
               >
                 <span
                   aria-hidden
-                  className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[13px] ${
+                  className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-105 ${
                     overdue
                       ? 'border-red-500/25 bg-red-500/[0.08] text-red-300'
                       : 'border-white/[0.08] bg-white/[0.04]'
@@ -71,8 +73,10 @@ export function TodayPlan({
                 </span>
                 {card.due_at && (
                   <span
-                    className={`ml-auto shrink-0 text-xs tabular-nums ${
-                      overdue ? 'text-red-400' : 'text-neutral-500'
+                    className={`ml-auto shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium tabular-nums ${
+                      overdue
+                        ? 'border-red-500/25 bg-red-500/[0.08] text-red-300'
+                        : 'border-white/[0.08] bg-white/[0.04] text-neutral-400'
                     }`}
                   >
                     {fmtIstanbulDate(card.due_at)}
@@ -85,19 +89,23 @@ export function TodayPlan({
       )}
 
       {shoots.length > 0 && (
-        <div>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+        <div
+          className={
+            cards.length > 0 ? 'border-t border-white/[0.06] pt-4' : undefined
+          }
+        >
+          <SectionLabel count={shoots.length}>
             {tr.production.shoots}
-          </h3>
+          </SectionLabel>
           <ul className="stagger-children space-y-2">
             {shoots.map((shoot) => (
               <li
                 key={shoot.id}
-                className="group flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.12] hover:bg-white/[0.05]"
+                className="group flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.12] hover:bg-white/[0.05] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_-12px_rgba(0,0,0,0.7)]"
               >
                 <span
                   aria-hidden
-                  className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[13px]"
+                  className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-105"
                 >
                   🎬
                 </span>
@@ -112,7 +120,7 @@ export function TodayPlan({
                     {shoot.clientName ?? '—'}
                   </span>
                 </span>
-                <span className="ml-auto shrink-0 text-xs tabular-nums text-neutral-500">
+                <span className="ml-auto shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium tabular-nums text-neutral-400">
                   {fmtIstanbulTime(shoot.starts_at)}–
                   {fmtIstanbulTime(shoot.ends_at)}
                 </span>

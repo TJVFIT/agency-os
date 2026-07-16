@@ -32,6 +32,27 @@ function PendingLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Tinted inline notice — red for failures, emerald for confirmations. */
+function Notice({
+  tone,
+  children,
+}: {
+  tone: 'error' | 'success';
+  children: React.ReactNode;
+}) {
+  const c =
+    tone === 'error'
+      ? 'border-red-500/25 bg-red-500/10 text-red-200'
+      : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+  return (
+    <p
+      className={`animate-enter inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${c}`}
+    >
+      {children}
+    </p>
+  );
+}
+
 interface CaptionState {
   status: 'pending' | 'done' | 'error';
   result?: CaptionResult;
@@ -285,65 +306,71 @@ export function AiActions({
             disabled={pending || poster?.status === 'pending'}
             onClick={runPoster}
           >
-            {poster?.status === 'pending'
-              ? tr.ai.pending
-              : tr.ai.generatePoster}
+            {poster?.status === 'pending' ? (
+              <PendingLabel>{tr.ai.pending}</PendingLabel>
+            ) : (
+              tr.ai.generatePoster
+            )}
           </Button>
         </div>
         {poster?.status === 'error' && (
-          <p className="text-sm text-red-400">{tr.ai.failed}</p>
+          <Notice tone="error">{tr.ai.failed}</Notice>
         )}
         {poster?.status === 'done' && (
-          <p className="text-sm text-emerald-400">{tr.ai.posterDone}</p>
+          <Notice tone="success">✓ {tr.ai.posterDone}</Notice>
         )}
       </div>
 
       {/* Caption results */}
       {caption?.status === 'error' && (
-        <p className="mt-3 text-sm text-red-400">{tr.ai.failed}</p>
+        <div className="mt-3">
+          <Notice tone="error">{tr.ai.failed}</Notice>
+        </div>
       )}
       {caption?.status === 'done' && caption.result && (
-        <div className="mt-3 space-y-2">
+        <div className="animate-enter mt-4 space-y-2 border-t border-white/[0.06] pt-4">
           <Label>{tr.ai.pickVariant}</Label>
-          {caption.result.variants.map((v, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-            >
-              <p className="whitespace-pre-wrap text-sm text-neutral-200">
-                {v.caption}
-              </p>
-              {v.hashtags.length > 0 && (
-                <p className="mt-1.5 text-xs text-sky-300">
-                  {v.hashtags
-                    .map((h) => (h.startsWith('#') ? h : `#${h}`))
-                    .join(' ')}
+          <div className="stagger-children space-y-2">
+            {caption.result.variants.map((v, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/20 hover:bg-white/[0.05]"
+              >
+                <p className="whitespace-pre-wrap text-sm text-neutral-200">
+                  {v.caption}
                 </p>
-              )}
-              <div className="mt-2.5 flex justify-end">
-                <Button
-                  type="button"
-                  variant="primary"
-                  disabled={pending}
-                  onClick={() => applyVariant(v)}
-                >
-                  {tr.common.add}
-                </Button>
+                {v.hashtags.length > 0 && (
+                  <p className="mt-1.5 text-xs text-sky-300">
+                    {v.hashtags
+                      .map((h) => (h.startsWith('#') ? h : `#${h}`))
+                      .join(' ')}
+                  </p>
+                )}
+                <div className="mt-2.5 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={pending}
+                    onClick={() => applyVariant(v)}
+                  >
+                    {tr.common.add}
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-          {applied && (
-            <p className="text-xs text-emerald-400">✓ {applied}</p>
-          )}
+            ))}
+          </div>
+          {applied && <Notice tone="success">✓ {applied}</Notice>}
         </div>
       )}
 
       {/* Translation result */}
       {translate?.status === 'error' && (
-        <p className="mt-3 text-sm text-red-400">{tr.ai.failed}</p>
+        <div className="mt-3">
+          <Notice tone="error">{tr.ai.failed}</Notice>
+        </div>
       )}
       {translate?.status === 'done' && translate.result && (
-        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="animate-enter mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <p className="whitespace-pre-wrap text-sm text-neutral-200">
             {translate.result.translation}
           </p>
@@ -384,15 +411,17 @@ export function AiActions({
       </div>
 
       {reply?.status === 'error' && (
-        <p className="mt-3 text-sm text-red-400">{tr.ai.failed}</p>
+        <div className="mt-3">
+          <Notice tone="error">{tr.ai.failed}</Notice>
+        </div>
       )}
       {reply?.status === 'done' && reply.result && (
-        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="animate-enter mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <p className="whitespace-pre-wrap text-sm text-neutral-200">
             {reply.result.reply}
           </p>
           {reply.result.escalate && (
-            <p className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2.5 py-1.5 text-xs text-amber-200">
+            <p className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2.5 py-1.5 text-xs leading-relaxed text-amber-200">
               ⚠ {tr.ai.replyEscalate}
               {reply.result.escalate_reason
                 ? ` — ${reply.result.escalate_reason}`
@@ -403,7 +432,7 @@ export function AiActions({
       )}
 
       {!userId && (
-        <p className="mt-3 text-xs text-neutral-600">
+        <p className="mt-4 rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
           {tr.common.unauthenticated}
         </p>
       )}

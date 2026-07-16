@@ -12,6 +12,8 @@ import { fmtIstanbul } from '@/lib/dates';
 import { tr } from '@/lib/i18n/tr';
 import type { ClientMessage } from '@/lib/db/types';
 
+import { CountChip, EmptyState, ErrorNote } from '../../_components/empty-state';
+
 /**
  * Team side of the client thread — realtime via the shared app-live channel
  * (client_messages is in the realtime publication, 0009). Opening the panel
@@ -62,15 +64,16 @@ export function MessagesPanel({
   }
 
   return (
-    <Panel title={tr.clients.messagesTitle}>
+    <Panel
+      title={tr.clients.messagesTitle}
+      actions={<CountChip value={messages.length} />}
+    >
       <div
         ref={scrollRef}
-        className="mb-3 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5"
+        className="stagger-children mb-3 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
       >
         {messages.length === 0 && (
-          <p className="p-3 text-center text-sm text-neutral-500">
-            {tr.clients.messagesEmpty}
-          </p>
+          <EmptyState bare compact icon="💬" text={tr.clients.messagesEmpty} />
         )}
         {messages.map((m) => (
           <div
@@ -78,16 +81,16 @@ export function MessagesPanel({
             className={`flex ${m.sender === 'team' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] rounded-2xl border px-3 py-2 ${
+              className={`max-w-[85%] rounded-2xl border px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
                 m.sender === 'team'
-                  ? 'border-indigo-400/20 bg-indigo-400/10'
-                  : 'border-emerald-400/20 bg-emerald-400/[0.08]'
+                  ? 'rounded-br-md border-indigo-400/20 bg-indigo-400/10'
+                  : 'rounded-bl-md border-emerald-400/20 bg-emerald-400/[0.08]'
               }`}
             >
               <p className="whitespace-pre-wrap break-words text-sm text-neutral-100">
                 {m.body}
               </p>
-              <p className="mt-1 text-[10px] text-neutral-500">
+              <p className="mt-1 text-[10px] tabular-nums text-neutral-500">
                 {m.sender === 'team'
                   ? (m.author && authorNames[m.author]) || tr.clients.teamLabel
                   : tr.clients.clientLabel}{' '}
@@ -106,14 +109,16 @@ export function MessagesPanel({
           maxLength={2000}
           rows={2}
         />
-        <Button
-          variant="primary"
-          disabled={pending || !body.trim()}
-          onClick={send}
-        >
-          {pending ? tr.common.loading : tr.portal.messageSend}
-        </Button>
-        {error && <p className="text-xs text-red-400">{tr.common.error}</p>}
+        <div className="flex items-center justify-end gap-2">
+          {error && <ErrorNote text={tr.common.error} className="flex-1" />}
+          <Button
+            variant="primary"
+            disabled={pending || !body.trim()}
+            onClick={send}
+          >
+            {pending ? tr.common.loading : tr.portal.messageSend}
+          </Button>
+        </div>
       </div>
     </Panel>
   );

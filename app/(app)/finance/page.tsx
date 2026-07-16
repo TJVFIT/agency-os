@@ -23,6 +23,7 @@ import { tr } from '@/lib/i18n/tr';
 
 import { AdDialog } from './_components/ad-dialog';
 import { AdsBoard, type AdRow } from './_components/ads-board';
+import { EmptyState } from './_components/empty-state';
 import { GlassChip } from './_components/glass-chip';
 import { PackageDialog } from './_components/package-dialog';
 import { PaymentDialog } from './_components/payment-dialog';
@@ -91,6 +92,9 @@ export default async function FinancePage({
     };
   });
 
+  // Display-only: overdue tally for the payments panel header chip.
+  const overdueCount = paymentRows.filter((r) => r.overdue).length;
+
   const adRows: AdRow[] = ads.map((a) => ({
     id: a.id,
     clientName: a.clients?.name ?? '—',
@@ -125,7 +129,8 @@ export default async function FinancePage({
 
       <nav
         role="tablist"
-        className="animate-enter mb-5 inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.03] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]"
+        aria-label={tr.finance.title}
+        className="animate-enter mb-4 inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.03] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]"
       >
         {TABS.map((t) => (
           <Link
@@ -144,79 +149,105 @@ export default async function FinancePage({
         ))}
       </nav>
 
-      {tab === 'packages' && (
-        <section className="stagger-children grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {packages.length === 0 && (
-            <p className="text-sm text-neutral-500">{tr.common.none}</p>
-          )}
-          {packages.map((pkg) => {
-            const cmp = compareQuota(
-              pkg.monthly,
-              usage[pkg.client_id] ?? emptyUsage(),
-            );
-            const quota = parseMonthlyQuota(pkg.monthly);
-            return (
-              <Panel
-                key={pkg.id}
-                title={`${pkg.clients?.name ?? '—'} · ${pkg.name}`}
-                actions={
-                  isManager ? (
-                    <div className="flex items-center gap-2">
-                      {!pkg.active && (
-                        <GlassChip tone="neutral">
-                          {tr.clients.inactive}
-                        </GlassChip>
-                      )}
-                      <PackageDialog
-                        clients={clientOptions}
-                        pkg={{
-                          id: pkg.id,
-                          clientId: pkg.client_id,
-                          name: pkg.name,
-                          price: pkg.price,
-                          monthly: {
-                            post: quota.post ?? 0,
-                            reel: quota.reel ?? 0,
-                            story: quota.story ?? 0,
-                            shoot: quota.shoot ?? 0,
-                          },
-                          active: pkg.active,
-                        }}
-                      />
-                    </div>
-                  ) : undefined
-                }
-                className={pkg.active ? '' : 'opacity-60'}
-              >
-                <p className="mb-3 font-mono text-sm font-medium tabular-nums text-neutral-100">
-                  {fmtMoney(pkg.price, pkg.currency)}
-                  <span className="ml-1 font-sans text-xs font-normal text-neutral-500">
-                    / {tr.common.month}
-                  </span>
-                </p>
-                <Label>{tr.finance.quotaUsage}</Label>
-                <QuotaBars
-                  items={QUOTA_TYPES.map((t) => ({
-                    key: t,
-                    label: QUOTA_LABELS[t],
-                    ...cmp[t],
-                  }))}
-                />
-              </Panel>
-            );
-          })}
-        </section>
-      )}
+      {tab === 'packages' &&
+        (packages.length === 0 ? (
+          <EmptyState icon="📦" text={tr.demo.noPackages} />
+        ) : (
+          <section className="stagger-children grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {packages.map((pkg) => {
+              const cmp = compareQuota(
+                pkg.monthly,
+                usage[pkg.client_id] ?? emptyUsage(),
+              );
+              const quota = parseMonthlyQuota(pkg.monthly);
+              return (
+                <Panel
+                  key={pkg.id}
+                  title={`${pkg.clients?.name ?? '—'} · ${pkg.name}`}
+                  actions={
+                    isManager || !pkg.active ? (
+                      <div className="flex items-center gap-2">
+                        {!pkg.active && (
+                          <GlassChip tone="neutral">
+                            {tr.clients.inactive}
+                          </GlassChip>
+                        )}
+                        {isManager && (
+                          <PackageDialog
+                            clients={clientOptions}
+                            pkg={{
+                              id: pkg.id,
+                              clientId: pkg.client_id,
+                              name: pkg.name,
+                              price: pkg.price,
+                              monthly: {
+                                post: quota.post ?? 0,
+                                reel: quota.reel ?? 0,
+                                story: quota.story ?? 0,
+                                shoot: quota.shoot ?? 0,
+                              },
+                              active: pkg.active,
+                            }}
+                          />
+                        )}
+                      </div>
+                    ) : undefined
+                  }
+                  className={`transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.7)] ${
+                    pkg.active ? '' : 'opacity-60'
+                  }`}
+                >
+                  <p className="mb-4 flex items-baseline gap-1.5">
+                    <span className="font-mono text-lg font-semibold tracking-tight tabular-nums text-neutral-50">
+                      {fmtMoney(pkg.price, pkg.currency)}
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      / {tr.common.month}
+                    </span>
+                  </p>
+                  <Label>{tr.finance.quotaUsage}</Label>
+                  <QuotaBars
+                    items={QUOTA_TYPES.map((t) => ({
+                      key: t,
+                      label: QUOTA_LABELS[t],
+                      ...cmp[t],
+                    }))}
+                  />
+                </Panel>
+              );
+            })}
+          </section>
+        ))}
 
       {tab === 'payments' && (
-        <Panel title={tr.finance.payments}>
+        <Panel
+          title={tr.finance.payments}
+          actions={
+            <div className="flex items-center gap-2">
+              {overdueCount > 0 && (
+                <GlassChip tone="red">
+                  {tr.finance.overdue} ·{' '}
+                  <span className="tabular-nums">{overdueCount}</span>
+                </GlassChip>
+              )}
+              <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[11px] font-medium tabular-nums text-neutral-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                {paymentRows.length}
+              </span>
+            </div>
+          }
+          className="animate-enter"
+        >
           <PaymentsTable rows={paymentRows} />
         </Panel>
       )}
 
       {tab === 'ads' && (
         <section>
-          <p className="animate-enter mb-4 rounded-xl border border-sky-400/20 bg-sky-400/[0.07] px-3.5 py-2.5 text-sm leading-relaxed text-sky-200/90">
+          <p className="animate-enter mb-4 flex items-start gap-2.5 rounded-xl border border-sky-400/20 bg-sky-400/[0.07] px-3.5 py-2.5 text-sm leading-relaxed text-sky-200/90">
+            <span
+              aria-hidden
+              className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
+            />
             {tr.finance.apiNote}
           </p>
           <AdsBoard ads={adRows} isManager={isManager} />

@@ -6,6 +6,7 @@ import { listClients } from '@/lib/db/queries';
 import type { ClientColors } from '@/lib/db/domain';
 import { tr } from '@/lib/i18n/tr';
 import { NewClientDialog } from './_components/new-client-dialog';
+import { CountChip, EmptyState } from './_components/empty-state';
 
 export default async function ClientsPage() {
   const session = await getSessionProfile();
@@ -15,15 +16,14 @@ export default async function ClientsPage() {
   return (
     <div className="p-4 md:p-6">
       <PageHeader title={tr.clients.title}>
+        <CountChip value={clients.length} />
         {isAdmin && <NewClientDialog />}
       </PageHeader>
 
       {clients.length === 0 ? (
-        <p className="animate-enter text-sm text-neutral-500">
-          {tr.common.notFound}
-        </p>
+        <EmptyState icon="👥" text={tr.common.notFound} />
       ) : (
-        <ul className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="stagger-children grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map((c) => {
             const primary =
               (c.colors as ClientColors | null)?.primary ?? '#525252';
@@ -31,7 +31,7 @@ export default async function ClientsPage() {
               <li key={c.id}>
                 <Link
                   href={`/clients/${c.id}`}
-                  className="group relative block overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.06] hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.7)]"
+                  className="group relative block overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.06] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_32px_-10px_rgba(0,0,0,0.75)]"
                 >
                   {/* client accent: hairline bar that brightens on hover — echoes CardTile */}
                   <span
@@ -73,14 +73,14 @@ export default async function ClientsPage() {
                       {c.langs.map((l) => (
                         <span
                           key={l}
-                          className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-300"
+                          className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-300"
                         >
                           {l}
                         </span>
                       ))}
                       {c.industry && (
-                        <span className="text-xs text-neutral-500">
-                          · {c.industry}
+                        <span className="rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-0.5 text-[10px] text-neutral-500">
+                          {c.industry}
                         </span>
                       )}
                     </div>

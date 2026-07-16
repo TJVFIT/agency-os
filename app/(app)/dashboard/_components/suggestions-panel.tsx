@@ -7,6 +7,8 @@ import { Button } from '@/components/ui';
 import { resolveSuggestion } from '@/lib/actions/automation';
 import { tr } from '@/lib/i18n/tr';
 
+import { EmptyState, InlineError } from './ui-bits';
+
 export interface SuggestionItem {
   id: string;
   title: string;
@@ -34,9 +36,7 @@ export function SuggestionsPanel({
   canResolve: boolean;
 }) {
   if (suggestions.length === 0) {
-    return (
-      <p className="text-sm text-neutral-500">{tr.automation.noSuggestions}</p>
-    );
+    return <EmptyState icon="📥" text={tr.automation.noSuggestions} />;
   }
 
   return (
@@ -74,7 +74,7 @@ function SuggestionRow({
   }
 
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.12] hover:bg-white/[0.05]">
+    <li className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.12] hover:bg-white/[0.05] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_-12px_rgba(0,0,0,0.7)]">
       <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-400">
         {suggestionDomainLabel(suggestion.domain)}
       </span>
@@ -97,7 +97,7 @@ function SuggestionRow({
           </div>
         )}
       </div>
-      {err && <span className="text-xs text-red-400">{err}</span>}
+      {err && <InlineError text={err} />}
       {canResolve && (
         <div className="flex shrink-0 items-center gap-1.5">
           <Button

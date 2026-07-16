@@ -24,17 +24,26 @@ export function QuotaBars({ items }: { items: QuotaBarItem[] }) {
                 it.over ? 'font-medium text-red-300' : 'text-neutral-400'
               }`}
             >
-              {it.used}/{it.quota}
+              {it.used}
+              <span className="text-neutral-600">/</span>
+              {it.quota}
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
+          <div
+            role="progressbar"
+            aria-label={it.label}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(Math.round(it.pct), 100)}
+            className="h-1.5 overflow-hidden rounded-full bg-white/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]"
+          >
             <div
-              className={`h-full rounded-full transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+              className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${
                 it.over
-                  ? 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]'
+                  ? 'from-red-500 to-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]'
                   : it.pct >= 100
-                    ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]'
-                    : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                    ? 'from-amber-500 to-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                    : 'from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
               }`}
               style={{ width: `${Math.min(it.pct, 100)}%` }}
             />

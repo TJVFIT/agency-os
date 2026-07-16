@@ -7,6 +7,7 @@ import { tr } from '@/lib/i18n/tr';
 import { fmtIstanbulDate } from '@/lib/dates';
 import type { PortalAsset } from '@/lib/portal/service';
 import { completePortalUpload, presignPortalUpload } from './actions';
+import { Bezel, Orb, ROW, SectionLabel, StatusNote } from './glass';
 
 type UploadState =
   | { phase: 'idle' }
@@ -92,8 +93,13 @@ export function UploadTab({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5">
-        <p className="text-xs text-neutral-400">{tr.portal.uploadHint}</p>
+      <Bezel innerClassName="space-y-3 p-3.5">
+        <div className="flex flex-col items-center gap-2.5 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-4 py-6 text-center">
+          <Orb>📤</Orb>
+          <p className="max-w-[32ch] text-xs leading-relaxed text-neutral-400">
+            {tr.portal.uploadHint}
+          </p>
+        </div>
         <input
           ref={inputRef}
           type="file"
@@ -112,38 +118,49 @@ export function UploadTab({
             ? `${tr.assets.uploading} (${state.current}/${state.total})`
             : tr.portal.uploadPick}
         </Button>
+        {state.phase === 'uploading' && (
+          <div className="animate-enter space-y-1.5" aria-hidden>
+            <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full bg-sky-400/70 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                style={{
+                  width: `${Math.round((state.current / state.total) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="text-center text-[11px] tabular-nums text-neutral-500">
+              {state.current} / {state.total}
+            </p>
+          </div>
+        )}
         {state.phase === 'done' && (
-          <p className="animate-enter rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1.5 text-center text-xs text-emerald-200">
-            {tr.portal.uploadDone}
-          </p>
+          <StatusNote tone="success">{tr.portal.uploadDone}</StatusNote>
         )}
         {state.phase === 'error' && (
-          <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-center text-xs text-red-300">
-            {state.message}
-          </p>
+          <StatusNote tone="error">{state.message}</StatusNote>
         )}
-      </div>
+      </Bezel>
 
       {uploads.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+          <SectionLabel count={uploads.length}>
             {tr.portal.myUploads}
-          </h3>
+          </SectionLabel>
           <ul className="stagger-children space-y-2">
             {uploads.map((asset) => (
               <li
                 key={asset.id}
-                className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
+                className={`flex items-center gap-3 px-3 py-2.5 ${ROW}`}
               >
                 {asset.thumbUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={asset.thumbUrl}
                     alt=""
-                    className="size-10 shrink-0 rounded-lg object-cover"
+                    className="size-10 shrink-0 rounded-lg border border-white/[0.08] object-cover"
                   />
                 ) : (
-                  <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.05] text-base">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.05] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                     {asset.kind === 'video' ? '🎬' : '🖼️'}
                   </span>
                 )}
@@ -151,7 +168,7 @@ export function UploadTab({
                   <p className="truncate text-sm font-medium text-neutral-100">
                     {asset.name || tr.assets.kinds[asset.kind]}
                   </p>
-                  <p className="text-[11px] text-neutral-500">
+                  <p className="text-[11px] tabular-nums text-neutral-500">
                     {fmtIstanbulDate(asset.createdAt)}
                   </p>
                 </div>

@@ -7,7 +7,7 @@ import { Button, Field, Input, Select } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import { createCard } from '@/lib/actions/cards';
 import { tr } from '@/lib/i18n/tr';
-import type { Client, Profile } from '@/lib/db/types';
+import type { Client, Profile, TaskType } from '@/lib/db/types';
 
 const TYPES = ['post', 'reel', 'story', 'reply', 'other'] as const;
 
@@ -15,10 +15,13 @@ const TYPES = ['post', 'reel', 'story', 'reply', 'other'] as const;
 export function NewCardDialog({
   clients,
   profiles,
+  taskTypes = [],
   defaultClientId,
 }: {
   clients: Pick<Client, 'id' | 'name'>[];
   profiles: Pick<Profile, 'id' | 'full_name'>[];
+  /** Active görev türleri (v4 §6) — the select renders only when non-empty. */
+  taskTypes?: Pick<TaskType, 'id' | 'name'>[];
   defaultClientId?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -35,6 +38,7 @@ export function NewCardDialog({
         type: formData.get('type') as (typeof TYPES)[number],
         assignee: (formData.get('assignee') as string) || null,
         priority: Number(formData.get('priority')),
+        taskTypeId: (formData.get('taskTypeId') as string) || null,
       });
       if (!res.ok) {
         setError(tr.errors.validation);
@@ -94,6 +98,18 @@ export function NewCardDialog({
               </Select>
             </Field>
           </div>
+          {taskTypes.length > 0 && (
+            <Field label={tr.taskTypes.onCard}>
+              <Select name="taskTypeId" defaultValue="" className="w-full">
+                <option value="">{tr.common.none}</option>
+                {taskTypes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           <Field label={tr.card.assignee}>
             <Select name="assignee" defaultValue="" className="w-full">
               <option value="">{tr.card.noAssignee}</option>

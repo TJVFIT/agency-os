@@ -11,6 +11,7 @@ import { istanbulDateString, istanbulToUtc } from '@/lib/dates';
 import { interpolate, tr } from '@/lib/i18n/tr';
 import {
   SHOOT_BLOCK_MINUTES,
+  equipmentConflicts,
   suggestRoute,
   suggestShootSlots,
   type Booking,
@@ -53,6 +54,113 @@ function toGeo(location: unknown): GeoPoint | null {
 
 // ---------- shoots ----------
 
+/**
+ * Save-time KRİTİK ENGEL checks (v4 §4/§5) — these block the save even with
+ * force:true: equipment reserved by another planned/confirmed shoot in an
+ * overlapping window, the vehicle physically double-booked by an overlapping
+ * shoot, or the vehicle inside one of its unavailability blocks.
+ */
+async function shootResourceConflict(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+  opts: {
+    startsAt: Date;
+    endsAt: Date;
+    equipmentIds: string[];
+    vehicleId: string | null;
+    excludeShootId?: string;
+  },
+): Promise<'equipment_conflict' | 'vehicle_conflict' | 'vehicle_blocked' | null> {
+  if (opts.equipmentIds.length > 0) {
+    let query = supabase
+      .from('shoots')
+      .select('id, starts_at, ends_at, equipment_ids')
+      .in('status', ['planned', 'confirmed'])
+      .lt('starts_at', opts.endsAt.toISOString())
+      .gt('ends_at', opts.startsAt.toISOString())
+      .overlaps('equipment_ids', opts.equipmentIds);
+    if (opts.excludeShootId) query = query.neq('id', opts.excludeShootId);
+    const { data: clashing } = await query;
+    const conflicts = equipmentConflicts(
+      { startsAt: opts.startsAt, endsAt: opts.endsAt },
+      opts.equipmentIds,
+      (clashing ?? []).map((s) => ({
+        startsAt: new Date(s.starts_at),
+        endsAt: new Date(s.ends_at),
+        equipmentIds: s.equipment_ids,
+      })),
+    );
+    if (conflicts.length > 0) return 'equipment_conflict';
+  }
+  if (opts.vehicleId) {
+    // physically double-booked: another planned/confirmed shoot overlaps
+    let vehicleQuery = supabase
+      .from('shoots')
+      .select('id')
+      .in('status', ['planned', 'confirmed'])
+      .eq('vehicle_id', opts.vehicleId)
+      .lt('starts_at', opts.endsAt.toISOString())
+      .gt('ends_at', opts.startsAt.toISOString())
+      .limit(1);
+    if (opts.excludeShootId)
+      vehicleQuery = vehicleQuery.neq('id', opts.excludeShootId);
+    const { data: vehicleClash } = await vehicleQuery;
+    if (vehicleClash?.length) return 'vehicle_conflict';
+
+    const { data: blocks } = await supabase
+      .from('vehicle_blocks')
+      .select('id')
+      .eq('vehicle_id', opts.vehicleId)
+      .lte('starts_on', istanbulDateString(opts.endsAt))
+      .gte('ends_on', istanbulDateString(opts.startsAt))
+      .limit(1);
+    if (blocks?.length) return 'vehicle_blocked';
+  }
+  return null;
+}
+
+/**
+ * UYARI check (v4 §5 conflict UX): crew members that have another
+ * planned/confirmed shoot on the same Istanbul day. Not a hard block — the
+ * UI offers "Uyarıya rağmen kaydet" which re-submits with force:true, and the
+ * action then logs `shoot.force_saved` (hard rule 2).
+ */
+async function crewBusySameDay(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+  opts: {
+    startsAt: Date;
+    endsAt: Date;
+    crew: string[];
+    excludeShootId?: string;
+  },
+): Promise<string[]> {
+  if (opts.crew.length === 0) return [];
+  const dayStart = istanbulToUtc(
+    `${istanbulDateString(opts.startsAt)}T00:00:00`,
+  );
+  const dayEnd = new Date(
+    istanbulToUtc(`${istanbulDateString(opts.endsAt)}T00:00:00`).getTime() +
+      24 * 3600 * 1000,
+  );
+
+  let query = supabase
+    .from('shoots')
+    .select('id, crew')
+    .in('status', ['planned', 'confirmed'])
+    .lt('starts_at', dayEnd.toISOString())
+    .gt('ends_at', dayStart.toISOString())
+    .overlaps('crew', opts.crew);
+  if (opts.excludeShootId) query = query.neq('id', opts.excludeShootId);
+  const { data: sameDay } = await query;
+
+  const busy = new Set<string>();
+  for (const shoot of sameDay ?? []) {
+    for (const id of shoot.crew) {
+      if (opts.crew.includes(id)) busy.add(id);
+    }
+  }
+  return [...busy];
+}
+
 const createShootSchema = z.object({
   clientId: z.uuid(),
   title: z.string().min(1).max(200),
@@ -62,6 +170,11 @@ const createShootSchema = z.object({
   endsAt: z.iso.datetime({ offset: true }).nullish(),
   crew: z.array(z.uuid()).max(20).default([]),
   vehicleId: z.uuid().nullish(),
+  /** Reserved equipment (v4 §5) — conflict-checked like crew/vehicle. */
+  equipmentIds: z.array(z.uuid()).max(30).default([]),
+  /** Save despite the crew-busy UYARI ("Uyarıya rağmen kaydet"). Never
+   * bypasses KRİTİK ENGEL conflicts. */
+  force: z.boolean().default(false),
 });
 
 export async function createShoot(
@@ -86,6 +199,22 @@ export async function createShoot(
     .single();
   if (!client) return { ok: false, error: 'clientNotFound' };
 
+  const conflict = await shootResourceConflict(supabase, {
+    startsAt,
+    endsAt,
+    equipmentIds: parsed.data.equipmentIds,
+    vehicleId: parsed.data.vehicleId ?? null,
+  });
+  if (conflict) return { ok: false, error: conflict };
+
+  const busyCrew = await crewBusySameDay(supabase, {
+    startsAt,
+    endsAt,
+    crew: parsed.data.crew,
+  });
+  if (busyCrew.length > 0 && !parsed.data.force)
+    return { ok: false, error: 'crew_busy' };
+
   const { data, error } = await supabase
     .from('shoots')
     .insert({
@@ -96,12 +225,31 @@ export async function createShoot(
       ends_at: endsAt.toISOString(),
       crew: parsed.data.crew,
       vehicle_id: parsed.data.vehicleId ?? null,
+      equipment_ids: parsed.data.equipmentIds,
       location: client.location,
       created_by: session.userId,
     })
     .select('id')
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // Saving over an acknowledged UYARI is itself an auditable decision
+  // (hard rule 2) — who overrode which warning, and why it fired.
+  if (busyCrew.length > 0 && parsed.data.force) {
+    await createSupabaseAdmin()
+      .from('activity_log')
+      .insert({
+        actor: session.userId,
+        client_id: parsed.data.clientId,
+        action: 'shoot.force_saved',
+        detail: {
+          shoot_id: data.id,
+          warning: 'crew_busy',
+          busy_crew: busyCrew,
+          day: istanbulDateString(startsAt),
+        },
+      });
+  }
 
   revalidatePath('/production');
   return { ok: true, data: { id: data.id } };
@@ -115,6 +263,9 @@ const updateShootSchema = z.object({
   endsAt: z.iso.datetime({ offset: true }).optional(),
   crew: z.array(z.uuid()).max(20).optional(),
   vehicleId: z.uuid().nullable().optional(),
+  equipmentIds: z.array(z.uuid()).max(30).optional(),
+  /** Save despite the crew-busy UYARI — see createShootSchema.force. */
+  force: z.boolean().default(false),
 });
 
 export async function updateShoot(
@@ -123,12 +274,14 @@ export async function updateShoot(
   const session = await requireSession();
   const parsed = updateShootSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { shootId, ...fields } = parsed.data;
+  const { shootId, force, ...fields } = parsed.data;
 
   const supabase = await createSupabaseServer();
   const { data: shoot } = await supabase
     .from('shoots')
-    .select('id, client_id, starts_at, ends_at, status, crew')
+    .select(
+      'id, client_id, starts_at, ends_at, status, crew, vehicle_id, equipment_ids',
+    )
     .eq('id', shootId)
     .single();
   if (!shoot) return { ok: false, error: 'notFound' };
@@ -146,6 +299,27 @@ export async function updateShoot(
   if (startsAt && endsAt && endsAt <= startsAt)
     return { ok: false, error: 'validation' };
 
+  // Double-booking gate on the effective (post-update) values (v4 §4/§5).
+  const effectiveStartsAt = startsAt ?? new Date(shoot.starts_at);
+  const effectiveEndsAt = endsAt ?? new Date(shoot.ends_at);
+  const conflict = await shootResourceConflict(supabase, {
+    startsAt: effectiveStartsAt,
+    endsAt: effectiveEndsAt,
+    equipmentIds: fields.equipmentIds ?? shoot.equipment_ids,
+    vehicleId:
+      fields.vehicleId !== undefined ? fields.vehicleId : shoot.vehicle_id,
+    excludeShootId: shootId,
+  });
+  if (conflict) return { ok: false, error: conflict };
+
+  const busyCrew = await crewBusySameDay(supabase, {
+    startsAt: effectiveStartsAt,
+    endsAt: effectiveEndsAt,
+    crew: fields.crew ?? shoot.crew,
+    excludeShootId: shootId,
+  });
+  if (busyCrew.length > 0 && !force) return { ok: false, error: 'crew_busy' };
+
   const { error } = await supabase
     .from('shoots')
     .update({
@@ -155,6 +329,9 @@ export async function updateShoot(
       ...(endsAt && { ends_at: endsAt.toISOString() }),
       ...(fields.crew !== undefined && { crew: fields.crew }),
       ...(fields.vehicleId !== undefined && { vehicle_id: fields.vehicleId }),
+      ...(fields.equipmentIds !== undefined && {
+        equipment_ids: fields.equipmentIds,
+      }),
     })
     .eq('id', shootId);
   if (error) return { ok: false, error: error.message };
@@ -174,6 +351,23 @@ export async function updateShoot(
         status: shoot.status,
       },
     });
+
+  // Acknowledged-warning save is logged separately (hard rule 2).
+  if (busyCrew.length > 0 && force) {
+    await createSupabaseAdmin()
+      .from('activity_log')
+      .insert({
+        actor: session.userId,
+        client_id: shoot.client_id,
+        action: 'shoot.force_saved',
+        detail: {
+          shoot_id: shootId,
+          warning: 'crew_busy',
+          busy_crew: busyCrew,
+          day: istanbulDateString(effectiveStartsAt),
+        },
+      });
+  }
 
   revalidatePath('/production');
   return { ok: true };
@@ -327,6 +521,9 @@ export interface SlotSuggestionDTO {
 const suggestSlotsSchema = z.object({
   clientId: z.uuid(),
   crewSize: z.number().int().min(1).max(10).optional(),
+  /** Equipment the shoot will reserve — slots where it is double-booked by
+   * an overlapping shoot are skipped (v4 §5). */
+  equipmentIds: z.array(z.uuid()).max(30).optional(),
 });
 
 /** Ranked shoot slots from the pure engine, serialized for the dialog. */
@@ -339,36 +536,54 @@ export async function suggestSlots(
 
   const now = new Date();
   const supabase = await createSupabaseServer();
-  const [availabilityRes, profilesRes, leavesRes, vehiclesRes, bookingsRes] =
-    await Promise.all([
-      supabase
-        .from('client_availability')
-        .select('starts_at, ends_at')
-        .eq('client_id', parsed.data.clientId)
-        .gte('ends_at', now.toISOString())
-        .order('starts_at'),
-      supabase.from('profiles').select('id, full_name').order('full_name'),
-      supabase
-        .from('staff_leaves')
-        .select('profile_id, starts_on, ends_on')
-        .gte('ends_on', istanbulDateString(now)),
-      supabase
-        .from('vehicles')
-        .select('id, name, capacity')
-        .eq('active', true)
-        .order('name'),
-      supabase
-        .from('shoots')
-        .select('starts_at, ends_at, crew, vehicle_id')
-        .in('status', ['planned', 'confirmed'])
-        .gte('ends_at', now.toISOString()),
-    ]);
+  const [
+    availabilityRes,
+    profilesRes,
+    leavesRes,
+    vehiclesRes,
+    bookingsRes,
+    vehicleBlocksRes,
+  ] = await Promise.all([
+    supabase
+      .from('client_availability')
+      .select('starts_at, ends_at')
+      .eq('client_id', parsed.data.clientId)
+      .gte('ends_at', now.toISOString())
+      .order('starts_at'),
+    supabase.from('profiles').select('id, full_name').order('full_name'),
+    supabase
+      .from('staff_leaves')
+      .select('profile_id, starts_on, ends_on')
+      .gte('ends_on', istanbulDateString(now)),
+    supabase
+      .from('vehicles')
+      .select('id, name, capacity')
+      .eq('active', true)
+      .order('name'),
+    supabase
+      .from('shoots')
+      .select('starts_at, ends_at, crew, vehicle_id, equipment_ids')
+      .in('status', ['planned', 'confirmed'])
+      .gte('ends_at', now.toISOString()),
+    // Blocked vehicles must not be suggested inside the window (v4 §4).
+    supabase
+      .from('vehicle_blocks')
+      .select('vehicle_id, starts_on, ends_on')
+      .gte('ends_on', istanbulDateString(now)),
+  ]);
 
   const leavesByProfile = new Map<string, LeaveRange[]>();
   for (const leave of leavesRes.data ?? []) {
     const list = leavesByProfile.get(leave.profile_id) ?? [];
     list.push({ startsOn: leave.starts_on, endsOn: leave.ends_on });
     leavesByProfile.set(leave.profile_id, list);
+  }
+
+  const blocksByVehicle = new Map<string, LeaveRange[]>();
+  for (const block of vehicleBlocksRes.data ?? []) {
+    const list = blocksByVehicle.get(block.vehicle_id) ?? [];
+    list.push({ startsOn: block.starts_on, endsOn: block.ends_on });
+    blocksByVehicle.set(block.vehicle_id, list);
   }
 
   const availability: TimeRange[] = (availabilityRes.data ?? []).map((w) => ({
@@ -384,12 +599,14 @@ export async function suggestSlots(
     id: v.id,
     name: v.name,
     capacity: v.capacity,
+    blocks: blocksByVehicle.get(v.id) ?? [],
   }));
   const bookings: Booking[] = (bookingsRes.data ?? []).map((b) => ({
     startsAt: new Date(b.starts_at),
     endsAt: new Date(b.ends_at),
     crew: b.crew,
     vehicleId: b.vehicle_id,
+    equipmentIds: b.equipment_ids,
   }));
 
   const slots = suggestShootSlots({
@@ -398,6 +615,7 @@ export async function suggestSlots(
     vehicles,
     bookings,
     crewSize: parsed.data.crewSize,
+    equipmentIds: parsed.data.equipmentIds,
     now,
   });
 
@@ -500,6 +718,9 @@ const createVehicleSchema = z.object({
   name: z.string().min(1).max(100),
   plate: z.string().max(20).default(''),
   capacity: z.number().int().min(1).max(20).default(4),
+  /** Regular driver (profiles.id) — v4 §4. */
+  driver: z.uuid().nullish(),
+  notes: z.string().max(2000).default(''),
 });
 
 export async function createVehicle(
@@ -512,7 +733,13 @@ export async function createVehicle(
   const supabase = await createSupabaseServer();
   const { data, error } = await supabase
     .from('vehicles')
-    .insert(parsed.data)
+    .insert({
+      name: parsed.data.name,
+      plate: parsed.data.plate,
+      capacity: parsed.data.capacity,
+      driver: parsed.data.driver ?? null,
+      notes: parsed.data.notes,
+    })
     .select('id')
     .single();
   if (error) return { ok: false, error: error.message };
@@ -536,6 +763,8 @@ const updateVehicleSchema = z.object({
   plate: z.string().max(20).optional(),
   capacity: z.number().int().min(1).max(20).optional(),
   active: z.boolean().optional(),
+  driver: z.uuid().nullable().optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 /** Edit/deactivate a vehicle (deactivate = { active: false }). */
@@ -555,6 +784,8 @@ export async function updateVehicle(
       ...(fields.plate !== undefined && { plate: fields.plate }),
       ...(fields.capacity !== undefined && { capacity: fields.capacity }),
       ...(fields.active !== undefined && { active: fields.active }),
+      ...(fields.driver !== undefined && { driver: fields.driver }),
+      ...(fields.notes !== undefined && { notes: fields.notes }),
     })
     .eq('id', vehicleId);
   if (error) return { ok: false, error: error.message };
@@ -570,6 +801,87 @@ export async function updateVehicle(
   revalidatePath('/production');
   return { ok: true };
 }
+
+// ---------- vehicle blocks (manager/admin — mirrors RLS mgr_write_vehicle_blocks) ----------
+
+const createVehicleBlockSchema = z
+  .object({
+    vehicleId: z.uuid(),
+    startsOn: z.iso.date(),
+    endsOn: z.iso.date(),
+    reason: z.string().max(500).default(''),
+  })
+  .refine((v) => v.endsOn >= v.startsOn);
+
+/** Mark a vehicle unavailable (maintenance, rental return…) — v4 §4. The
+ * 0010 insert trigger logs `vehicle.blocked` (hard rule 2). */
+export async function createVehicleBlock(
+  input: z.input<typeof createVehicleBlockSchema>,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await requireRole('admin', 'manager');
+  const parsed = createVehicleBlockSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase
+    .from('vehicle_blocks')
+    .insert({
+      vehicle_id: parsed.data.vehicleId,
+      starts_on: parsed.data.startsOn,
+      ends_on: parsed.data.endsOn,
+      reason: parsed.data.reason,
+      created_by: session.userId,
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/production');
+  return { ok: true, data: { id: data.id } };
+}
+
+const deleteVehicleBlockSchema = z.object({ blockId: z.uuid() });
+
+export async function deleteVehicleBlock(
+  input: z.input<typeof deleteVehicleBlockSchema>,
+): Promise<ActionResult> {
+  const session = await requireRole('admin', 'manager');
+  const parsed = deleteVehicleBlockSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const supabase = await createSupabaseServer();
+  const { data: block } = await supabase
+    .from('vehicle_blocks')
+    .select('id, vehicle_id, starts_on, ends_on')
+    .eq('id', parsed.data.blockId)
+    .single();
+  if (!block) return { ok: false, error: 'notFound' };
+
+  const { error } = await supabase
+    .from('vehicle_blocks')
+    .delete()
+    .eq('id', block.id);
+  if (error) return { ok: false, error: error.message };
+
+  // No delete trigger on vehicle_blocks — log here (hard rule 2).
+  await createSupabaseAdmin()
+    .from('activity_log')
+    .insert({
+      actor: session.userId,
+      action: 'vehicle.block_deleted',
+      detail: {
+        block_id: block.id,
+        vehicle_id: block.vehicle_id,
+        starts_on: block.starts_on,
+        ends_on: block.ends_on,
+      },
+    });
+
+  revalidatePath('/production');
+  return { ok: true };
+}
+
+// Equipment CRUD lives in lib/actions/equipment.ts (v4 §5).
 
 // ---------- staff leaves (self or manager — mirrors RLS self_or_mgr_write_leaves) ----------
 

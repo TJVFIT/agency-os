@@ -63,7 +63,7 @@ export function AutomationSettings({ initial }: { initial: SettingRow[] }) {
       {/* Master kill switch — deliberately heavier: its own tile, a glow
        *  dot reflecting the active mode, and top billing above the domain
        *  list it governs. Not alarmed red — this is a control, not a warning. */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_-14px_rgba(0,0,0,0.6)]">
+      <div className="animate-enter mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_-14px_rgba(0,0,0,0.6)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.16] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_32px_-14px_rgba(0,0,0,0.7)]">
         <div className="flex items-center gap-2.5">
           <span
             className={`h-2 w-2 shrink-0 rounded-full transition-colors duration-300 ${MASTER_DOT[masterMode]}`}
@@ -86,15 +86,21 @@ export function AutomationSettings({ initial }: { initial: SettingRow[] }) {
           return (
             <div
               key={domain}
-              className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.05] py-2.5 last:border-b-0"
+              className="-mx-2 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.05] px-2 py-2.5 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] last:border-b-0 hover:bg-white/[0.02]"
             >
               <div className="min-w-0">
                 <div className="text-sm text-neutral-200">
                   {tr.automation.domains[domain]}
                 </div>
                 {effective !== own && (
-                  <div className="animate-enter text-xs text-amber-400">
-                    → {tr.automation.modes[effective]}
+                  <div className="mt-0.5">
+                    <span className="animate-enter inline-flex items-center gap-1 rounded-full border border-amber-400/20 bg-amber-400/10 px-1.5 py-px text-[10px] font-medium text-amber-200">
+                      <span
+                        aria-hidden
+                        className="h-1 w-1 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]"
+                      />
+                      → {tr.automation.modes[effective]}
+                    </span>
                   </div>
                 )}
               </div>
@@ -108,7 +114,11 @@ export function AutomationSettings({ initial }: { initial: SettingRow[] }) {
         })}
       </div>
 
-      {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+      {err && (
+        <p className="animate-enter mt-3 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+          {err}
+        </p>
+      )}
       <p className="mt-3 border-t border-white/[0.06] pt-3 text-xs leading-relaxed text-neutral-500">
         {tr.automation.modeHelp}
       </p>

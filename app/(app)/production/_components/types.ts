@@ -1,4 +1,10 @@
-import type { Shoot, StaffLeave, Vehicle } from '@/lib/db/types';
+import type {
+  Equipment,
+  Shoot,
+  StaffLeave,
+  Vehicle,
+  VehicleBlock,
+} from '@/lib/db/types';
 
 /** Row shapes the /production server page passes into its client tabs. */
 
@@ -12,6 +18,10 @@ export type LeaveRow = StaffLeave & {
 };
 
 export type VehicleRow = Vehicle;
+
+export type VehicleBlockRow = VehicleBlock;
+
+export type EquipmentRow = Equipment;
 
 export interface ClientOption {
   id: string;

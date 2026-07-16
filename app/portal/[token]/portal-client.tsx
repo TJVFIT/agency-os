@@ -66,10 +66,10 @@ export function PortalClient({
             role="tab"
             aria-selected={tab === t}
             onClick={() => open(t)}
-            className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] ${
               tab === t
-                ? 'border-white/20 bg-white/[0.12] text-neutral-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                : 'border-white/10 bg-white/[0.04] text-neutral-500 hover:text-neutral-300'
+                ? 'border-white/20 bg-white/[0.12] text-neutral-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_16px_-6px_rgba(0,0,0,0.8)]'
+                : 'border-white/10 bg-white/[0.04] text-neutral-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-neutral-300'
             }`}
           >
             {tr.portal.tabs[t]}
@@ -87,18 +87,24 @@ export function PortalClient({
         ))}
       </nav>
 
-      {tab === 'approvals' && <ApprovalsTab token={token} cards={view.cards} />}
-      {tab === 'pipeline' && <PipelineTab cards={view.pipeline} />}
-      {tab === 'messages' && (
-        <MessagesTab token={token} initial={view.messages} />
-      )}
-      {tab === 'upload' && <UploadTab token={token} initial={view.media} />}
-      {tab === 'edit' && <EditTab token={token} media={view.media} />}
-      {tab === 'ideas' && <IdeaTab token={token} ideas={view.ideas} />}
-      {tab === 'availability' && (
-        <AvailabilityTab token={token} windows={view.availability} />
-      )}
-      {tab === 'info' && <InfoTab token={token} initial={view.contact} />}
+      {/* key={tab} re-mounts the panel so each tab switch replays the
+          enter choreography (globals.css disables it on reduced motion). */}
+      <div key={tab} role="tabpanel" className="animate-enter">
+        {tab === 'approvals' && (
+          <ApprovalsTab token={token} cards={view.cards} />
+        )}
+        {tab === 'pipeline' && <PipelineTab cards={view.pipeline} />}
+        {tab === 'messages' && (
+          <MessagesTab token={token} initial={view.messages} />
+        )}
+        {tab === 'upload' && <UploadTab token={token} initial={view.media} />}
+        {tab === 'edit' && <EditTab token={token} media={view.media} />}
+        {tab === 'ideas' && <IdeaTab token={token} ideas={view.ideas} />}
+        {tab === 'availability' && (
+          <AvailabilityTab token={token} windows={view.availability} />
+        )}
+        {tab === 'info' && <InfoTab token={token} initial={view.contact} />}
+      </div>
     </div>
   );
 }

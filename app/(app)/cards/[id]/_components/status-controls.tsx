@@ -108,7 +108,7 @@ export function StatusControls({
         <StatusBadge status={status} />
       </div>
 
-      <div className="space-y-2">
+      <div className="stagger-children space-y-2">
         {forwardTargets.map((to) => (
           <Button
             key={to}
@@ -165,13 +165,23 @@ export function StatusControls({
           !canSchedule &&
           !rejectTarget &&
           !canArchive && (
-            <p className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
-              {tr.common.none}
-            </p>
+            <div className="animate-enter flex flex-col items-center gap-2.5 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center">
+              <span
+                aria-hidden
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+              >
+                🔒
+              </span>
+              <p className="text-xs text-neutral-500">{tr.common.none}</p>
+            </div>
           )}
       </div>
 
-      {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+      {error && (
+        <p className="animate-enter mt-3 rounded-lg border border-red-500/25 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-200">
+          {error}
+        </p>
+      )}
 
       <ScheduleDialog
         open={scheduleOpen}

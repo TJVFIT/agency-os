@@ -36,7 +36,7 @@ export function StringList({
           {items.map((item, i) => (
             <li
               key={i}
-              className="flex items-start gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5"
+              className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-300 hover:border-white/[0.12]"
             >
               <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm text-neutral-200">
                 {item}
@@ -44,7 +44,7 @@ export function StringList({
               <button
                 type="button"
                 onClick={() => onChange(items.filter((_, j) => j !== i))}
-                className="shrink-0 text-xs text-neutral-500 hover:text-red-400"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] text-neutral-600 transition-colors duration-300 hover:bg-red-400/10 hover:text-red-300"
                 aria-label={tr.common.remove}
               >
                 ✕

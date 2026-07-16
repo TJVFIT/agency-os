@@ -14,9 +14,11 @@ import {
 import { Button, PageHeader, Panel, Select } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import { CardTile } from '@/components/card-tile';
+import { ImpactDialog } from '@/components/impact-dialog';
 import { useRealtimeEvent } from '@/components/realtime-provider';
 import { rescheduleCard } from '@/lib/actions/cards';
 import { createApprovalLink } from '@/lib/actions/approvals';
+import { applyImpact, computeImpact } from '@/lib/actions/impact';
 import {
   fmtIstanbul,
   fmtIstanbulDate,
@@ -26,6 +28,7 @@ import {
 } from '@/lib/dates';
 import { tr } from '@/lib/i18n/tr';
 import type { CardWithClient } from '@/lib/db/queries';
+import type { ImpactItem } from '@/lib/impact';
 
 type View = 'month' | 'week';
 
@@ -51,6 +54,10 @@ function addDays(d: Date, n: number): Date {
 /** Turkish short weekday headers, Monday-first. */
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
+/** Round glass chip for ‹ › period navigation. */
+const NAV_BTN =
+  'flex h-7 w-7 items-center justify-center rounded-full text-sm text-neutral-400 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.08] hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/40 active:scale-[0.92]';
+
 export function CalendarView({
   cards: initialCards,
   clients,
@@ -66,6 +73,17 @@ export function CalendarView({
   const [link, setLink] = useState<{ whatsapp: string } | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+  // Drag paused for the impact dialog: the optimistic move is on screen,
+  // `snapshot` restores the pre-drag state on cancel (v4 §21).
+  const [impact, setImpact] = useState<{
+    items: ImpactItem[];
+    cardId: string;
+    atIso: string;
+    /** Pre-move anchor — applyImpact recomputes deltas from it (the row
+     * already holds the new date by the time the linked updates run). */
+    fromIso: string | null;
+    snapshot: CardWithClient[];
+  } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const sensors = useSensors(
@@ -135,6 +153,16 @@ export function CalendarView({
     );
   }, [view, anchor]);
 
+  // Presentation only: does any visible day carry a card? Drives the
+  // designed empty state above the grid.
+  const hasVisibleCards = useMemo(
+    () =>
+      weeks.some((week) =>
+        week.some((d) => byDay.has(fmtIstanbul(d, 'yyyy-MM-dd'))),
+      ),
+    [weeks, byDay],
+  );
+
   const currentMonthStr = fmtIstanbul(anchor, 'yyyy-MM');
   const singleClient = clientId !== 'all';
 
@@ -186,20 +214,66 @@ export function CalendarView({
 
     startTransition(async () => {
       try {
-        const res = await rescheduleCard({ cardId, at: atIso });
-        if (!res.ok) {
-          setCards(snapshot); // revert
-          setRescheduleError(
-            tr.statusReasons[res.error as keyof typeof tr.statusReasons] ??
-              tr.board.dragError,
-          );
+        // v4 §21: check what else the move touches before persisting. When
+        // linked work is affected, the impact dialog decides how to proceed.
+        const impactRes = await computeImpact({
+          kind: 'card_reschedule',
+          cardId,
+          at: atIso,
+          from: ts ?? undefined,
+        });
+        const items = impactRes.ok ? (impactRes.data ?? []) : [];
+        if (items.length > 0) {
+          setImpact({ items, cardId, atIso, fromIso: ts, snapshot });
+          return; // persisted (or reverted) from the dialog
         }
+        await persistReschedule(cardId, atIso, ts, snapshot, []);
       } catch {
         // Network/server failure: revert and tell the user why.
         setCards(snapshot);
         setRescheduleError(tr.board.dragError);
       }
     });
+  }
+
+  /** Save the card's new date, then apply the chosen linked updates.
+   * `fromIso` is the pre-move anchor: by the time applyImpact recomputes,
+   * the row already holds `atIso`, so the original date must travel with
+   * the change (validated server-side) or every delta would be zero. */
+  async function persistReschedule(
+    cardId: string,
+    atIso: string,
+    fromIso: string | null,
+    snapshot: CardWithClient[],
+    selectedIds: string[],
+  ) {
+    try {
+      const res = await rescheduleCard({ cardId, at: atIso });
+      if (!res.ok) {
+        setCards(snapshot); // revert
+        setRescheduleError(
+          tr.statusReasons[res.error as keyof typeof tr.statusReasons] ??
+            tr.board.dragError,
+        );
+        return;
+      }
+      if (selectedIds.length > 0) {
+        const applied = await applyImpact({
+          change: {
+            kind: 'card_reschedule',
+            cardId,
+            at: atIso,
+            from: fromIso ?? undefined,
+          },
+          selectedIds,
+        });
+        // The card itself is saved; only the linked updates failed.
+        if (!applied.ok) setRescheduleError(tr.errors.generic);
+      }
+    } catch {
+      setCards(snapshot);
+      setRescheduleError(tr.board.dragError);
+    }
   }
 
   function sendWeekForApproval(weekAnchor: Date) {
@@ -232,48 +306,75 @@ export function CalendarView({
             </option>
           ))}
         </Select>
-        <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <button
-            onClick={() => setView('month')}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] ${
-              view === 'month'
-                ? 'bg-neutral-50 text-neutral-950 shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
-                : 'text-neutral-400 hover:text-neutral-100'
-            }`}
-          >
-            {tr.calendar.monthView}
-          </button>
-          <button
-            onClick={() => setView('week')}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] ${
-              view === 'week'
-                ? 'bg-neutral-50 text-neutral-950 shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
-                : 'text-neutral-400 hover:text-neutral-100'
-            }`}
-          >
-            {tr.calendar.weekView}
-          </button>
+        <div
+          role="group"
+          aria-label={tr.calendar.title}
+          className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+        >
+          {(['month', 'week'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/40 active:scale-[0.96] ${
+                view === v
+                  ? 'bg-neutral-50 text-neutral-950 shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
+                  : 'text-neutral-400 hover:text-neutral-100'
+              }`}
+            >
+              {v === 'month' ? tr.calendar.monthView : tr.calendar.weekView}
+            </button>
+          ))}
         </div>
       </PageHeader>
 
-      <div className="animate-enter mb-3 flex flex-wrap items-center gap-2">
-        <Button variant="secondary" onClick={() => shift(-1)} aria-label="prev">
-          ‹
-        </Button>
-        <span className="min-w-40 text-center text-sm font-medium tracking-tight text-neutral-200">
-          {rangeLabel}
-        </span>
-        <Button variant="secondary" onClick={() => shift(1)} aria-label="next">
-          ›
-        </Button>
+      {/* Period toolbar: ‹ range › pill • today • busy chip • week approval */}
+      <div className="animate-enter mb-4 flex flex-wrap items-center gap-2">
+        <div className="inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <button
+            type="button"
+            onClick={() => shift(-1)}
+            aria-label={tr.demo.prevMonth}
+            title={tr.demo.prevMonth}
+            className={NAV_BTN}
+          >
+            ‹
+          </button>
+          <span className="min-w-36 px-1 text-center text-sm font-medium tabular-nums tracking-tight text-neutral-200">
+            {rangeLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => shift(1)}
+            aria-label={tr.demo.nextMonth}
+            title={tr.demo.nextMonth}
+            className={NAV_BTN}
+          >
+            ›
+          </button>
+        </div>
         <Button variant="ghost" onClick={() => setAnchor(istanbulWeekStart())}>
           {tr.common.today}
         </Button>
+        {pending && (
+          <span
+            role="status"
+            className="animate-enter inline-flex items-center gap-1.5 rounded-full border border-indigo-300/20 bg-indigo-400/[0.08] px-2.5 py-1 text-[11px] text-indigo-200"
+          >
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-300 shadow-[0_0_8px_rgba(165,180,252,0.8)]"
+            />
+            {tr.common.processing}
+          </span>
+        )}
         {view === 'week' && singleClient && (
           <Button
             variant="primary"
             className="ml-auto"
             disabled={pending}
+            icon="→"
             onClick={() => sendWeekForApproval(anchor)}
           >
             {tr.calendar.sendWeekForApproval}
@@ -281,75 +382,98 @@ export function CalendarView({
         )}
       </div>
 
-      {approvalError && (
-        <p className="mb-3 rounded-full border border-red-500/25 bg-red-500/[0.08] px-3 py-1.5 text-xs text-red-200">
-          {approvalError}
-        </p>
-      )}
-
-      {rescheduleError && (
-        <p className="mb-3 rounded-full border border-red-500/25 bg-red-500/[0.08] px-3 py-1.5 text-xs text-red-200">
-          {rescheduleError}
-        </p>
-      )}
+      {approvalError && <AlertBanner text={approvalError} />}
+      {rescheduleError && <AlertBanner text={rescheduleError} />}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
+        <div className="animate-enter grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
           <div className="min-w-0">
-            {/* Weekday header */}
-            <div className="mb-1 grid grid-cols-7 gap-1.5">
-              {WEEKDAYS.map((w) => (
-                <div
-                  key={w}
-                  className="px-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500"
-                >
-                  {w}
-                </div>
-              ))}
-            </div>
+            {!hasVisibleCards && <RangeEmptyState />}
 
-            <div className="stagger-children space-y-1.5">
-              {weeks.map((week, wi) => (
-                <div key={wi} className="relative">
-                  {view === 'month' && singleClient && (
-                    <button
-                      onClick={() => sendWeekForApproval(week[0])}
-                      disabled={pending}
-                      title={tr.calendar.sendWeekForApproval}
-                      className="absolute -left-1 top-1 z-10 hidden -translate-x-full rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-neutral-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-50 xl:block"
-                    >
-                      ⇢
-                    </button>
-                  )}
-                  <div className="grid grid-cols-7 gap-1.5">
-                    {week.map((dayDate) => {
-                      const dayStr = fmtIstanbul(dayDate, 'yyyy-MM-dd');
-                      const inMonth =
-                        view === 'week' ||
-                        fmtIstanbul(dayDate, 'yyyy-MM') === currentMonthStr;
-                      const isToday = dayStr === istanbulDateString();
-                      return (
-                        <DayCell
-                          key={dayStr}
-                          dayStr={dayStr}
-                          label={fmtIstanbul(dayDate, 'd')}
-                          dimmed={!inMonth}
-                          isToday={isToday}
-                          tall={view === 'week'}
-                          cards={byDay.get(dayStr) ?? []}
-                        />
-                      );
-                    })}
-                  </div>
+            {/* Grid scrolls inside its own container on narrow screens;
+                xl restores overflow for the per-week approval chip gutter. */}
+            <div className="overflow-x-auto pb-1 xl:overflow-visible">
+              <div className="min-w-[640px]">
+                {/* Weekday header — day numbers join in week view */}
+                <div className="mb-1 grid grid-cols-7 gap-1.5">
+                  {WEEKDAYS.map((w, i) => {
+                    const headDay =
+                      view === 'week' ? weeks[0]?.[i] : undefined;
+                    return (
+                      <div
+                        key={w}
+                        className="px-1.5 text-[11px] font-medium uppercase tracking-[0.08em] tabular-nums text-neutral-500"
+                      >
+                        {headDay ? `${w} ${fmtIstanbul(headDay, 'd')}` : w}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+
+                <div className="stagger-children space-y-1.5">
+                  {weeks.map((week, wi) => (
+                    <div key={wi} className="relative">
+                      {view === 'month' && singleClient && (
+                        <button
+                          onClick={() => sendWeekForApproval(week[0])}
+                          disabled={pending}
+                          title={tr.calendar.sendWeekForApproval}
+                          aria-label={tr.calendar.sendWeekForApproval}
+                          className="absolute -left-1.5 top-1 z-10 hidden h-7 w-7 -translate-x-full items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xs text-neutral-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-indigo-300/40 hover:bg-indigo-400/10 hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/40 active:scale-[0.92] disabled:opacity-40 xl:flex"
+                        >
+                          ⇢
+                        </button>
+                      )}
+                      <div className="grid grid-cols-7 gap-1.5">
+                        {week.map((dayDate) => {
+                          const dayStr = fmtIstanbul(dayDate, 'yyyy-MM-dd');
+                          const inMonth =
+                            view === 'week' ||
+                            fmtIstanbul(dayDate, 'yyyy-MM') ===
+                              currentMonthStr;
+                          const isToday = dayStr === istanbulDateString();
+                          return (
+                            <DayCell
+                              key={dayStr}
+                              dayStr={dayStr}
+                              label={fmtIstanbul(dayDate, 'd')}
+                              dimmed={!inMonth}
+                              isToday={isToday}
+                              tall={view === 'week'}
+                              cards={byDay.get(dayStr) ?? []}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Unscheduled tray */}
-          <Panel title={tr.calendar.unscheduled} className="self-start">
+          <Panel
+            title={tr.calendar.unscheduled}
+            className="self-start"
+            actions={
+              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] tabular-nums text-neutral-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                {unscheduled.length}
+              </span>
+            }
+          >
             {unscheduled.length === 0 ? (
-              <p className="text-sm text-neutral-500">{tr.board.empty}</p>
+              <div className="flex flex-col items-center gap-2.5 py-6 text-center">
+                <span
+                  aria-hidden
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                >
+                  🗂️
+                </span>
+                <p className="text-xs leading-relaxed text-neutral-500">
+                  {tr.board.empty}
+                </p>
+              </div>
             ) : (
               <div className="stagger-children space-y-1.5">
                 {unscheduled.map((c) => (
@@ -368,7 +492,68 @@ export function CalendarView({
       >
         {link && <CopyBlock text={link.whatsapp} />}
       </Dialog>
+
+      <ImpactDialog
+        open={impact !== null}
+        items={impact?.items ?? []}
+        pending={pending}
+        onCancel={() => {
+          if (impact) setCards(impact.snapshot); // undo the optimistic move
+          setImpact(null);
+        }}
+        onConfirm={(selectedIds) => {
+          if (!impact) return;
+          const { cardId, atIso, fromIso, snapshot } = impact;
+          setImpact(null);
+          startTransition(async () => {
+            await persistReschedule(
+              cardId,
+              atIso,
+              fromIso,
+              snapshot,
+              selectedIds,
+            );
+          });
+        }}
+      />
     </>
+  );
+}
+
+/** Red tint alert row — unified error pattern (glowing dot + soft tint). */
+function AlertBanner({ text }: { text: string }) {
+  return (
+    <p
+      role="alert"
+      className="animate-enter mb-3 flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.08] px-3 py-2.5 text-xs leading-relaxed text-red-200"
+    >
+      <span
+        aria-hidden
+        className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-red-400 shadow-[0_0_10px_rgba(239,68,68,0.7)]"
+      />
+      {text}
+    </p>
+  );
+}
+
+/** Designed empty state for a visible range with no dated cards. */
+function RangeEmptyState() {
+  return (
+    <section className="animate-enter mb-3 rounded-2xl bg-gradient-to-b from-white/[0.09] via-white/[0.04] to-white/[0.02] p-px shadow-[0_16px_48px_-16px_rgba(0,0,0,0.65)]">
+      <div className="relative flex flex-col items-center gap-2.5 overflow-hidden rounded-[calc(1rem-1px)] bg-[#0a0a0b] px-6 py-8 text-center">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(24rem_10rem_at_50%_-3rem,rgba(129,140,248,0.11),transparent_70%)]"
+        />
+        <span
+          aria-hidden
+          className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_28px_rgba(129,140,248,0.16)]"
+        >
+          📅
+        </span>
+        <p className="relative text-sm text-neutral-400">{tr.board.empty}</p>
+      </div>
+    </section>
   );
 }
 
@@ -402,13 +587,19 @@ function DayCell({
       }`}
     >
       <span
-        className={`mb-1 text-xs tabular-nums ${
+        className={`mb-1 flex items-center gap-1 text-xs tabular-nums ${
           isToday ? 'font-semibold text-indigo-200' : 'text-neutral-500'
         }`}
       >
-        {isToday ? `• ${label}` : label}
+        {isToday && (
+          <span
+            aria-hidden
+            className="h-1 w-1 rounded-full bg-indigo-300 shadow-[0_0_6px_rgba(165,180,252,0.9)]"
+          />
+        )}
+        {label}
       </span>
-      <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
+      <div className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain">
         {cards.map((c) => (
           <DraggableCard key={c.id} card={c} />
         ))}
@@ -424,7 +615,7 @@ function DraggableCard({ card }: { card: CardWithClient }) {
   return (
     <div
       ref={setNodeRef}
-      className={isDragging ? 'opacity-40' : ''}
+      className={`transition-opacity duration-200 ${isDragging ? 'opacity-40' : ''}`}
       style={{ touchAction: 'none' }}
     >
       <CardTile
@@ -444,7 +635,7 @@ function CopyBlock({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-3">
-      <p className="whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-neutral-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+      <p className="whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm leading-relaxed text-neutral-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
         {text}
       </p>
       <div className="flex justify-end">

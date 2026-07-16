@@ -8,6 +8,8 @@ import { Dialog } from '@/components/dialog';
 import { createClientAction } from '@/lib/actions/clients';
 import { tr } from '@/lib/i18n/tr';
 
+import { ErrorNote } from './empty-state';
+
 const LANGS = ['tr', 'en'] as const;
 type Lang = (typeof LANGS)[number];
 
@@ -134,10 +136,10 @@ export function NewClientDialog() {
                   key={l}
                   type="button"
                   onClick={() => toggleLang(l)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium uppercase transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium uppercase tracking-[0.08em] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
                     langs.includes(l)
-                      ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200'
-                      : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/20'
+                      ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                      : 'border-white/10 bg-white/[0.03] text-neutral-500 hover:border-white/20 hover:text-neutral-300'
                   }`}
                 >
                   {l}
@@ -145,7 +147,7 @@ export function NewClientDialog() {
               ))}
             </div>
           </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <ErrorNote text={error} />}
           <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"

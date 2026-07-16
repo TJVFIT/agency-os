@@ -7,6 +7,7 @@ import { updateClientAction } from '@/lib/actions/clients';
 import type { GlossaryEntry } from '@/lib/db/domain';
 import { tr } from '@/lib/i18n/tr';
 
+import { CountChip, EmptyState } from './empty-state';
 import { SaveIndicator, type SaveState } from './save-state';
 
 type Row = { term: string; rule: 'keep' | 'translate_to'; value: string };
@@ -57,6 +58,7 @@ export function GlossaryEditor({
       actions={
         <div className="flex items-center gap-2">
           <SaveIndicator state={state} />
+          <CountChip value={rows.length} />
           <Button variant="primary" onClick={save} disabled={pending}>
             {tr.common.save}
           </Button>
@@ -65,15 +67,18 @@ export function GlossaryEditor({
     >
       <div className="space-y-2">
         {rows.length === 0 && (
-          <p className="text-xs text-neutral-500">{tr.common.none}</p>
+          <EmptyState compact icon="📖" text={tr.common.none} />
         )}
         {rows.map((row, i) => (
-          <div key={i} className="flex items-start gap-2">
+          <div
+            key={i}
+            className="flex flex-wrap items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-300 hover:border-white/[0.12]"
+          >
             <Input
               value={row.term}
               onChange={(e) => update(i, { term: e.target.value })}
               placeholder={tr.clients.glossaryTerm}
-              className="flex-1"
+              className="min-w-[7rem] flex-1"
             />
             <Select
               value={row.rule}
@@ -91,13 +96,13 @@ export function GlossaryEditor({
                 value={row.value}
                 onChange={(e) => update(i, { value: e.target.value })}
                 placeholder={tr.clients.glossaryValue}
-                className="flex-1"
+                className="min-w-[7rem] flex-1"
               />
             )}
             <button
               type="button"
               onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
-              className="shrink-0 px-1 py-2 text-xs text-neutral-500 hover:text-red-400"
+              className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] text-neutral-600 transition-colors duration-300 hover:bg-red-400/10 hover:text-red-300"
               aria-label={tr.common.remove}
             >
               ✕

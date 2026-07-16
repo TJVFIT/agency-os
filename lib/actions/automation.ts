@@ -7,6 +7,7 @@ import { requireRole } from '@/lib/auth';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { AUTOMATION_DOMAINS } from '@/lib/automation';
+import { OPEN_CARD_STATUSES } from '@/lib/workload';
 import { interpolate, tr } from '@/lib/i18n/tr';
 import type { ActionResult } from '@/lib/actions/cards';
 import type { Enums, Json, TablesInsert } from '@/lib/db/types';
@@ -106,6 +107,14 @@ const bodySchema = z.discriminatedUnion('kind', [
     card_id: z.uuid(),
     client_id: z.uuid(),
   }),
+  // Workload rebalance transfer (v4): from = current assignee (null = the
+  // unassigned pool) so the executor can detect a stale suggestion.
+  z.object({
+    kind: z.literal('reassign_card'),
+    card_id: z.uuid(),
+    to: z.uuid(),
+    from: z.uuid().nullable(),
+  }),
   z.object({ kind: z.literal('info') }),
 ]);
 
@@ -179,6 +188,26 @@ export async function resolveSuggestion(
     }
   }
 
+  // A workload transfer goes stale the same way: the card may have been
+  // deleted, moved past the open statuses (no remaining work to hand over),
+  // or reassigned since the scan wrote the suggestion. Auto-dismiss instead
+  // of moving a card out from under whoever picked it up meanwhile.
+  if (body.data.kind === 'reassign_card') {
+    if (await isReassignSuggestionStale(supabase, body.data)) {
+      await supabase
+        .from('suggestions')
+        .update({
+          status: 'dismissed',
+          resolved_by: session.userId,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('status', 'pending');
+      revalidatePath('/dashboard');
+      return { ok: false, error: 'stale' };
+    }
+  }
+
   // Claim first (pending → accepted) so concurrent accepts can't execute the
   // body twice. On execution failure we revert to pending so a retry works.
   const { data: claimed, error: claimErr } = await supabase
@@ -230,6 +259,26 @@ async function isPublishSuggestionStale(
   if (card.status !== 'scheduled') return true;
   if (!card.scheduled_at) return true;
   return new Date(card.scheduled_at).getTime() > Date.now();
+}
+
+/**
+ * A reassign_card suggestion is stale unless its card still exists, still
+ * carries open work, and is still held by the assignee the suggestion was
+ * computed against (`from`, null = unassigned pool). Runs under caller RLS.
+ */
+async function isReassignSuggestionStale(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+  body: { card_id: string; from: string | null },
+): Promise<boolean> {
+  const { data: card } = await supabase
+    .from('cards')
+    .select('status, assignee')
+    .eq('id', body.card_id)
+    .maybeSingle();
+  if (!card) return true;
+  if (!(OPEN_CARD_STATUSES as readonly string[]).includes(card.status))
+    return true;
+  return (card.assignee ?? null) !== body.from;
 }
 
 /** Execute an accepted suggestion body. Returns an error message or null. */
@@ -294,6 +343,25 @@ async function executeBody(
         created_by: actorId,
       });
       return error ? error.message : null;
+    }
+
+    case 'reassign_card': {
+      // Session client on purpose (unlike the admin-path siblings): cards RLS
+      // authorizes the manager's update and the 0005 assignment trigger logs
+      // the change with auth.uid() as actor (rule 2) + notifies the new
+      // assignee. The `from` guard makes the update a no-op if the assignee
+      // changed between the stale check above and this write.
+      const supabase = await createSupabaseServer();
+      let update = supabase
+        .from('cards')
+        .update({ assignee: body.to })
+        .eq('id', body.card_id);
+      update = body.from
+        ? update.eq('assignee', body.from)
+        : update.is('assignee', null);
+      const { data, error } = await update.select('id');
+      if (error) return error.message;
+      return data?.length ? null : 'stale';
     }
 
     // Informational suggestions: accepting just archives them — the team

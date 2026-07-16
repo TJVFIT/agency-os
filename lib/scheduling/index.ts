@@ -28,6 +28,9 @@ export interface VehicleInfo {
   id: string;
   name: string;
   capacity: number;
+  /** Maintenance/unavailability windows (vehicle_blocks, v4 §4) — a blocked
+   * vehicle is never suggested for a slot inside a window. */
+  blocks?: LeaveRange[];
 }
 
 export interface TimeRange {
@@ -35,10 +38,12 @@ export interface TimeRange {
   endsAt: Date;
 }
 
-/** Existing commitments that block crew/vehicle double-booking. */
+/** Existing commitments that block crew/vehicle/equipment double-booking. */
 export interface Booking extends TimeRange {
   crew: string[];
   vehicleId: string | null;
+  /** Equipment reserved by the booking (shoots.equipment_ids, v4 §5). */
+  equipmentIds?: string[];
 }
 
 export interface SlotInput {
@@ -49,6 +54,10 @@ export interface SlotInput {
   bookings: Booking[];
   /** Crew size to assemble (default 2). */
   crewSize?: number;
+  /** Equipment the planned shoot will reserve — slots where any of it is
+   * already booked by an overlapping shoot are skipped (v4 §5, same
+   * treatment as crew/vehicle). */
+  equipmentIds?: string[];
   blockMinutes?: number;
   /** Search horizon in days (default 10). */
   horizonDays?: number;
@@ -69,6 +78,14 @@ function overlaps(a: TimeRange, b: TimeRange): boolean {
 function onLeave(member: StaffMember, at: Date): boolean {
   const day = formatInTimeZone(at, TZ, 'yyyy-MM-dd');
   return member.leaves.some((l) => day >= l.startsOn && day <= l.endsOn);
+}
+
+/** True when the Istanbul day of `at` falls inside a vehicle block window. */
+export function vehicleBlockedOn(vehicle: VehicleInfo, at: Date): boolean {
+  const day = formatInTimeZone(at, TZ, 'yyyy-MM-dd');
+  return (vehicle.blocks ?? []).some(
+    (b) => day >= b.startsOn && day <= b.endsOn,
+  );
 }
 
 /** Clip a window to the Istanbul workday; yields per-day sub-windows. */
@@ -147,16 +164,35 @@ export function suggestShootSlots(input: SlotInput): SlotSuggestion[] {
         );
         if (freeStaff.length < crewSize) continue;
 
+        // requested equipment must be free in the whole block (v4 §5)
+        if (
+          input.equipmentIds?.length &&
+          equipmentConflicts(
+            slot,
+            input.equipmentIds,
+            input.bookings.map((b) => ({
+              startsAt: b.startsAt,
+              endsAt: b.endsAt,
+              equipmentIds: b.equipmentIds ?? [],
+            })),
+          ).length > 0
+        )
+          continue;
+
         const busyVehicles = new Set(
           input.bookings
             .filter((b) => overlaps(b, slot) && b.vehicleId)
             .map((b) => b.vehicleId as string),
         );
-        // vehicle must be free AND fit the whole crew (capacity check —
-        // caught by the ai-workforce review roundtable)
+        // vehicle must be free, fit the whole crew (capacity check — caught
+        // by the ai-workforce review roundtable) AND not be inside a
+        // maintenance/unavailability block (vehicle_blocks, v4 §4)
         const vehicle =
           input.vehicles.find(
-            (v) => !busyVehicles.has(v.id) && v.capacity >= crewSize,
+            (v) =>
+              !busyVehicles.has(v.id) &&
+              v.capacity >= crewSize &&
+              !vehicleBlockedOn(v, slot.startsAt),
           ) ?? null;
         if (input.vehicles.length > 0 && !vehicle) continue;
 
@@ -179,6 +215,35 @@ export function suggestShootSlots(input: SlotInput): SlotSuggestion[] {
   }
 
   return out.sort((a, b) => b.score - a.score).slice(0, 10);
+}
+
+// ---------- equipment double-booking (v4 §5) ----------
+
+/** An existing shoot's reserved equipment in its time block. */
+export interface EquipmentBooking extends TimeRange {
+  equipmentIds: string[];
+}
+
+/**
+ * Equipment ids requested for `slot` that are already reserved by a
+ * time-overlapping booking. Empty result = no conflict. Pure — the server
+ * action feeds it the planned/confirmed shoots that overlap the slot.
+ */
+export function equipmentConflicts(
+  slot: TimeRange,
+  equipmentIds: string[],
+  bookings: EquipmentBooking[],
+): string[] {
+  if (equipmentIds.length === 0) return [];
+  const wanted = new Set(equipmentIds);
+  const hits = new Set<string>();
+  for (const booking of bookings) {
+    if (!overlaps(booking, slot)) continue;
+    for (const id of booking.equipmentIds) {
+      if (wanted.has(id)) hits.add(id);
+    }
+  }
+  return [...hits];
 }
 
 // ---------- routing ----------

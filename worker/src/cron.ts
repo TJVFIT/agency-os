@@ -21,10 +21,19 @@ import {
 
 import type { Json } from '../../lib/db/types';
 import { QUOTA_TYPES } from '../../lib/quota-types';
+import { effectiveMode } from '../../lib/automation';
+import {
+  OPEN_CARD_STATUSES,
+  WORKLOAD_HORIZON_DAYS,
+  computeWorkload,
+  suggestTransfers,
+  transferTitle,
+  type WorkloadCardInput,
+} from '../../lib/workload';
 import { checkCardCompliance, approvalIsStale } from './compliance-check';
 import { db, logActivity } from './supabase';
 import { notifyManagers, notifyUser } from './telegram';
-import { mayAutoAct } from './automation';
+import { loadAutomationSettings, mayAutoAct } from './automation';
 import { sendPushToManagers, sendPushToProfile } from './push';
 import { r2Configured } from './r2';
 import { log } from './log';
@@ -787,6 +796,97 @@ async function runMissingWorkDetector(): Promise<void> {
   log.info(counts, 'missing work detector done');
 }
 
+// ---------- daily 09:30 workload scan (v4) ----------
+async function runWorkloadScan(): Promise<void> {
+  // Suggestion-first (workload prior art: rebalancing is a human decision):
+  // a transfer is NEVER applied automatically in any mode — accepting the
+  // suggestion from the dashboard performs the reassignment. The scan reuses
+  // the 'planner' automation domain and runs only in suggest/semi; in full
+  // planner mode the weekly planner already redistributes upcoming work, so
+  // the daily nudge stays quiet.
+  const mode = effectiveMode(await loadAutomationSettings(), 'planner');
+  if (mode === 'full') {
+    log.info('workload scan skipped (planner mode full)');
+    return;
+  }
+
+  const now = Date.now();
+  const [profilesRes, cardsRes, typesRes, shootsRes] = await Promise.all([
+    db().from('profiles').select('id, full_name'),
+    db()
+      .from('cards')
+      .select('id, title, client_id, assignee, status, due_at, task_type_id')
+      .in('status', [...OPEN_CARD_STATUSES]),
+    db().from('task_types').select('id, workload_points'),
+    db()
+      .from('shoots')
+      .select('crew')
+      .in('status', ['planned', 'confirmed'])
+      .gte('starts_at', new Date(now).toISOString())
+      .lte(
+        'starts_at',
+        new Date(now + WORKLOAD_HORIZON_DAYS * DAY_MS).toISOString(),
+      ),
+  ]);
+
+  const profiles = profilesRes.data ?? [];
+  const cards = cardsRes.data ?? [];
+  const cardInputs: WorkloadCardInput[] = cards.map((c) => ({
+    id: c.id,
+    title: c.title,
+    assignee: c.assignee,
+    status: c.status,
+    dueAt: c.due_at,
+    taskTypeId: c.task_type_id,
+  }));
+  const taskTypePoints = Object.fromEntries(
+    (typesRes.data ?? []).map((t) => [t.id, t.workload_points]),
+  );
+
+  const workloads = computeWorkload(
+    profiles.map((p) => ({ id: p.id, name: p.full_name })),
+    cardInputs,
+    (shootsRes.data ?? []).map((s) => s.crew ?? []),
+    taskTypePoints,
+  );
+  const transfers = suggestTransfers(workloads, cardInputs, taskTypePoints);
+
+  const names = Object.fromEntries(profiles.map((p) => [p.id, p.full_name]));
+  const clientByCard = Object.fromEntries(
+    cards.map((c) => [c.id, c.client_id]),
+  );
+
+  let created = 0;
+  for (const transfer of transfers) {
+    // insertSuggestion dedupes on pending domain+card_id — same key as the
+    // manager quick action (lib/actions/workload.ts), so the two never stack.
+    const fresh = await insertSuggestion({
+      domain: 'workload',
+      title: transferTitle(transfer, names),
+      body: {
+        kind: 'reassign_card',
+        card_id: transfer.cardId,
+        to: transfer.to,
+        from: transfer.from,
+      },
+      clientId: clientByCard[transfer.cardId] ?? null,
+      cardId: transfer.cardId,
+      batched: true, // one summary below, not a ping per row
+    });
+    if (fresh) created += 1;
+  }
+
+  if (created > 0) {
+    await logActivity('workload.rebalanced', {
+      detail: { created, source: 'cron' },
+    }).catch(() => {});
+    await managersAll(
+      `⚖️ İş yükü: ${created} devir önerisi hazır — Öneriler kutusundan onaylayın.`,
+    );
+  }
+  log.info({ mode, created }, 'workload scan done');
+}
+
 // ---------- daily 10:00 gap radar ----------
 async function runGapRadar(): Promise<void> {
   const { data: clients } = await db()
@@ -814,12 +914,24 @@ async function runGapRadar(): Promise<void> {
 async function runRetention(): Promise<void> {
   const yearAgo = new Date(Date.now() - 365 * DAY_MS).toISOString();
   const sixtyDaysAgo = new Date(Date.now() - 60 * DAY_MS).toISOString();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * DAY_MS).toISOString();
   await db().from('activity_log').delete().lt('created_at', yearAgo);
   await db()
     .from('ai_jobs')
     .delete()
     .in('status', ['done', 'error'])
     .lt('updated_at', sixtyDaysAgo);
+  // Assistant chat is personal data (KVKK/GDPR storage limitation): the RLS
+  // policies allow no user delete, so the service role bounds retention here.
+  const { count: chatPruned } = await db()
+    .from('assistant_messages')
+    .delete({ count: 'exact' })
+    .lt('created_at', ninetyDaysAgo);
+  if ((chatPruned ?? 0) > 0) {
+    await logActivity('retention.assistant_prune', {
+      detail: { deleted: chatPruned, older_than_days: 90 },
+    }).catch(() => {});
+  }
   await sweepRawInputs();
   log.info('retention pruning done');
 }
@@ -907,6 +1019,9 @@ export function startCron(): () => void {
     cron.schedule('0 17 * * 5', () => void runReports(), { timezone: TZ }),
     cron.schedule('0 8 * * *', () => void runDailyPlans(), { timezone: TZ }),
     cron.schedule('30 10 * * *', () => void runMissingWorkDetector(), {
+      timezone: TZ,
+    }),
+    cron.schedule('30 9 * * *', () => void runWorkloadScan(), {
       timezone: TZ,
     }),
     cron.schedule('0 10 * * *', () => void runGapRadar(), { timezone: TZ }),

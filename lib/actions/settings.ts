@@ -95,6 +95,68 @@ export async function setUserRole(
   return { ok: true };
 }
 
+/** SPEC v4: çekim bloğu bounds — a shoot block is 30 min .. 12 h. */
+const shootBlockSchema = z.number().int().min(30).max(720);
+
+/**
+ * Admin edits the global çekim bloğu (app_settings.shoot_block_minutes,
+ * migration 0010). The row is seeded by the migration and updates fire the
+ * app_settings_log trigger (hard rule 2), so no explicit log here.
+ */
+export async function updateShootBlockMinutes(
+  minutes: number,
+): Promise<ActionResult> {
+  const session = await requireRole('admin'); // RLS: admin_write_app_settings
+  const parsed = shootBlockSchema.safeParse(minutes);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase
+    .from('app_settings')
+    .update({
+      value: parsed.data,
+      updated_by: session.userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('key', 'shoot_block_minutes')
+    .select('key') // surfaces a missing seed row as an error
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
+/**
+ * Effective çekim bloğu for a client (v4): per-client override
+ * (clients.shoot_block_minutes) ?? app_settings global ?? 210 minutes.
+ * Shoot-creating flows (production / fleet planner) call this before
+ * computing the reserved window.
+ */
+export async function resolveShootBlockMinutes(
+  clientId?: string | null,
+): Promise<number> {
+  await requireSession();
+  const supabase = await createSupabaseServer();
+
+  if (clientId) {
+    const { data: client } = await supabase
+      .from('clients')
+      .select('shoot_block_minutes')
+      .eq('id', clientId)
+      .maybeSingle();
+    if (client?.shoot_block_minutes != null) return client.shoot_block_minutes;
+  }
+
+  const { data: setting } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'shoot_block_minutes')
+    .maybeSingle();
+  const value = Number(setting?.value);
+  return Number.isInteger(value) && value > 0 ? value : 210;
+}
+
 const postizSchema = z.object({
   accountId: z.uuid(),
   integrationId: z.string().max(200).nullable(),

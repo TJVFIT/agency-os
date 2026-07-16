@@ -27,18 +27,32 @@ export function ClientFilter({
   }
 
   return (
-    <Select
-      value={current}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={tr.card.client}
-      className="min-w-[168px]"
-    >
-      <option value="">{tr.common.all}</option>
-      {clients.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-        </option>
-      ))}
-    </Select>
+    <div className="relative">
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500"
+      >
+        <path d="M3 5h18l-7 8v5l-4 2v-7z" />
+      </svg>
+      <Select
+        value={current}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={tr.card.client}
+        className="min-w-[168px] pl-8"
+      >
+        <option value="">{tr.common.all}</option>
+        {clients.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </Select>
+    </div>
   );
 }

@@ -87,6 +87,8 @@ const updateClientSchema = z.object({
   logoAssetId: z.uuid().nullable().optional(),
   /** null clears the saved location. */
   location: locationSchema.nullable().optional(),
+  /** Çekim bloğu override (v4); null = use the app_settings global. */
+  shootBlockMinutes: z.number().int().min(30).max(720).nullable().optional(),
 });
 
 export async function updateClientAction(
@@ -111,6 +113,9 @@ export async function updateClientAction(
       ...(f.colors !== undefined && { colors: f.colors }),
       ...(f.logoAssetId !== undefined && { logo_asset_id: f.logoAssetId }),
       ...(f.location !== undefined && { location: f.location ?? {} }),
+      ...(f.shootBlockMinutes !== undefined && {
+        shoot_block_minutes: f.shootBlockMinutes,
+      }),
     })
     .eq('id', clientId);
   if (error) return { ok: false, error: error.message };

@@ -1,6 +1,11 @@
 import { PageHeader } from '@/components/ui';
 import { NewCardDialog } from '@/components/new-card-dialog';
-import { listCards, listClients, listProfiles } from '@/lib/db/queries';
+import {
+  listCards,
+  listClients,
+  listProfiles,
+  listTaskTypes,
+} from '@/lib/db/queries';
 import { tr } from '@/lib/i18n/tr';
 
 import { BoardView } from './_components/board-view';
@@ -11,10 +16,11 @@ import { BoardView } from './_components/board-view';
  * BoardView for drag-and-drop + realtime patching.
  */
 export default async function BoardPage() {
-  const [clients, profiles, cards] = await Promise.all([
+  const [clients, profiles, cards, taskTypes] = await Promise.all([
     listClients(),
     listProfiles(),
     listCards({ includeArchived: false }),
+    listTaskTypes({ activeOnly: true }),
   ]);
 
   const clientOptions = clients.map((c) => ({ id: c.id, name: c.name }));
@@ -26,7 +32,11 @@ export default async function BoardPage() {
   return (
     <div className="p-4 md:p-6">
       <PageHeader title={tr.nav.board}>
-        <NewCardDialog clients={clientOptions} profiles={profileOptions} />
+        <NewCardDialog
+          clients={clientOptions}
+          profiles={profileOptions}
+          taskTypes={taskTypes.map((t) => ({ id: t.id, name: t.name }))}
+        />
       </PageHeader>
       <BoardView
         initialCards={cards}

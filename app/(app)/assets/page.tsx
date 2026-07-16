@@ -27,17 +27,40 @@ export default async function AssetsPage() {
 
   const clientOptions = clients.map((c) => ({ id: c.id, name: c.name }));
 
+  const assetList = (assets ?? []) as Asset[];
+  const imageCount = assetList.filter((a) => a.kind === 'image').length;
+  const videoCount = assetList.filter((a) => a.kind === 'video').length;
+
   return (
     <div className="p-4 md:p-6">
-      <PageHeader title={tr.nav.assets}>
+      <PageHeader title={tr.assets.title}>
         <Uploader clients={clientOptions} />
       </PageHeader>
 
+      {/* Library at-a-glance: glass stat chips (loaded page of the library). */}
+      <div className="animate-enter mb-4 flex flex-wrap items-center gap-2">
+        <StatChip label={tr.nav.assets} value={assetList.length} />
+        <StatChip label={tr.assets.kinds.image} value={imageCount} />
+        <StatChip label={tr.assets.kinds.video} value={videoCount} />
+      </div>
+
       <AssetsGrid
-        assets={(assets ?? []) as Asset[]}
+        assets={assetList}
         clients={clientOptions}
         isAdmin={isAdmin}
       />
     </div>
+  );
+}
+
+/** Rounded glass chip with a tabular-nums count — header summary row. */
+function StatChip({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs text-neutral-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <span className="font-semibold tabular-nums text-neutral-100">
+        {value}
+      </span>
+      {label}
+    </span>
   );
 }

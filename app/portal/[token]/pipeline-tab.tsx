@@ -3,6 +3,7 @@
 import { tr } from '@/lib/i18n/tr';
 import { fmtIstanbul } from '@/lib/dates';
 import type { PortalPipelineCard } from '@/lib/portal/service';
+import { EmptyState, ROW, SectionLabel } from './glass';
 
 /** Client-facing status order — internal statuses grouped for readability. */
 const STATUS_ORDER = [
@@ -25,6 +26,17 @@ const STATUS_CHIP: Record<string, string> = {
   published: 'border-violet-400/20 bg-violet-400/10 text-violet-200',
 };
 
+/** Tiny status dot next to each group label — same tint as the chip. */
+const STATUS_DOT: Record<string, string> = {
+  idea: 'bg-neutral-500',
+  copy_draft: 'bg-neutral-400',
+  visual_ready: 'bg-amber-300',
+  translated: 'bg-amber-300',
+  approved: 'bg-emerald-300',
+  scheduled: 'bg-sky-300',
+  published: 'bg-violet-300',
+};
+
 const TYPE_LABEL: Record<string, string> = {
   post: 'Post',
   reel: 'Reels',
@@ -36,11 +48,7 @@ const TYPE_LABEL: Record<string, string> = {
 /** Durum tab — read-only pipeline view of the client's own content. */
 export function PipelineTab({ cards }: { cards: PortalPipelineCard[] }) {
   if (cards.length === 0) {
-    return (
-      <p className="animate-enter rounded-xl border border-white/[0.07] bg-white/[0.03] p-6 text-center text-sm text-neutral-400">
-        {tr.portal.pipelineEmpty}
-      </p>
-    );
+    return <EmptyState icon="🗂️" text={tr.portal.pipelineEmpty} />;
   }
 
   const ordered = STATUS_ORDER.map((status) => ({
@@ -52,24 +60,25 @@ export function PipelineTab({ cards }: { cards: PortalPipelineCard[] }) {
     <div className="space-y-4">
       {ordered.map((group) => (
         <section key={group.status}>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+          <SectionLabel count={group.items.length}>
+            <span
+              aria-hidden
+              className={`size-1.5 self-center rounded-full ${STATUS_DOT[group.status] ?? STATUS_DOT.idea}`}
+            />
             {tr.statuses[group.status as keyof typeof tr.statuses]}
-            <span className="ml-1.5 tabular-nums text-neutral-600">
-              {group.items.length}
-            </span>
-          </h3>
+          </SectionLabel>
           <ul className="stagger-children space-y-2">
             {group.items.map((card) => (
               <li
                 key={card.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
+                className={`flex items-center justify-between gap-2 px-3 py-2.5 ${ROW}`}
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-neutral-100">
                     {card.title}
                   </p>
                   {card.scheduledAt && (
-                    <p className="text-[11px] text-neutral-500">
+                    <p className="text-[11px] tabular-nums text-neutral-500">
                       {tr.portal.pipelineScheduled}:{' '}
                       {fmtIstanbul(card.scheduledAt, 'dd.MM.yyyy HH:mm')}
                     </p>

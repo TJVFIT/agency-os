@@ -155,7 +155,11 @@ export function AdDialog({
               />
             </Field>
           </div>
-          {error && <p className="text-sm text-red-300">{error}</p>}
+          {error && (
+            <p className="rounded-lg border border-red-400/25 bg-red-400/10 px-3 py-2 text-sm text-red-200">
+              {error}
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"

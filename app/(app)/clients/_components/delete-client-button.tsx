@@ -8,6 +8,8 @@ import { Dialog } from '@/components/dialog';
 import { deleteClientAction } from '@/lib/actions/clients';
 import { tr } from '@/lib/i18n/tr';
 
+import { ErrorNote } from './empty-state';
+
 export function DeleteClientButton({ clientId }: { clientId: string }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function DeleteClientButton({ clientId }: { clientId: string }) {
         title={tr.common.delete}
       >
         <p className="text-sm text-neutral-300">{tr.clients.deleteConfirm}</p>
-        {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+        {error && <ErrorNote text={error} className="mt-2" />}
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
             {tr.common.cancel}

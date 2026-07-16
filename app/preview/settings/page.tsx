@@ -83,6 +83,7 @@ function AutomationShowcase() {
     post_shoot: 'full',
     compliance: 'semi',
     reports: 'full',
+    workload: 'semi',
   });
 
   return (

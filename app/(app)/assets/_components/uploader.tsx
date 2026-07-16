@@ -16,6 +16,10 @@ import type { Enums } from '@/lib/db/types';
 
 type ClientOption = { id: string; name: string };
 
+/** Shared focus-visible ring for interactive elements in this dialog. */
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/40';
+
 function kindForType(contentType: string): Enums<'asset_kind'> {
   if (contentType.startsWith('image/')) return 'image';
   if (contentType.startsWith('video/')) return 'video';
@@ -134,7 +138,11 @@ export function Uploader({ clients }: { clients: ClientOption[] }) {
 
   return (
     <>
-      <Button variant="primary" onClick={() => setOpen(true)}>
+      <Button
+        variant="primary"
+        className={FOCUS_RING}
+        onClick={() => setOpen(true)}
+      >
         {tr.assets.upload}
       </Button>
 
@@ -148,12 +156,12 @@ export function Uploader({ clients }: { clients: ClientOption[] }) {
         }}
         title={tr.assets.upload}
       >
-        <div className="flex flex-col gap-3">
+        <div className="stagger-children flex flex-col gap-3">
           <Field label={tr.card.client}>
             <Select
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
-              className="w-full"
+              className={`w-full ${FOCUS_RING}`}
               disabled={busy}
             >
               <option value="">{tr.common.none}</option>
@@ -166,23 +174,43 @@ export function Uploader({ clients }: { clients: ClientOption[] }) {
           </Field>
 
           <Field label={tr.nav.assets}>
-            <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-5 text-center transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/25 hover:bg-white/[0.04]">
+            {/* Dropzone — icon orb lifts on hover, dashed glass border. */}
+            <div className="group rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-6 text-center transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/25 hover:bg-white/[0.04]">
+              <span
+                aria-hidden
+                className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.06] to-white/[0.02] text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-0.5"
+              >
+                🖼️
+              </span>
               <input
                 ref={fileRef}
                 type="file"
                 accept="image/*,video/*"
                 disabled={busy}
-                className="w-full text-xs text-neutral-400 file:mr-3 file:rounded-full file:border-0 file:bg-white/[0.08] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-200 file:transition-colors file:duration-300 hover:file:bg-white/[0.14] disabled:opacity-40"
+                className={`w-full text-xs text-neutral-400 file:mr-3 file:rounded-full file:border-0 file:bg-white/[0.08] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-200 file:transition-colors file:duration-300 hover:file:bg-white/[0.14] disabled:opacity-40 ${FOCUS_RING}`}
               />
             </div>
           </Field>
 
-          {status && <p className="text-xs text-neutral-400">{status}</p>}
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {status && (
+            <p className="flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-xs text-neutral-300">
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-indigo-300 shadow-[0_0_8px_rgba(129,140,248,0.8)]"
+              />
+              {status}
+            </p>
+          )}
+          {error && (
+            <p className="animate-enter rounded-lg border border-red-500/25 bg-red-500/10 px-2.5 py-1.5 text-xs leading-snug text-red-200">
+              {error}
+            </p>
+          )}
 
           <div className="mt-1 flex justify-end gap-2">
             <Button
               variant="ghost"
+              className={FOCUS_RING}
               onClick={() => {
                 setOpen(false);
                 reset();
@@ -191,7 +219,12 @@ export function Uploader({ clients }: { clients: ClientOption[] }) {
             >
               {tr.common.cancel}
             </Button>
-            <Button variant="primary" onClick={handleUpload} disabled={busy}>
+            <Button
+              variant="primary"
+              className={FOCUS_RING}
+              onClick={handleUpload}
+              disabled={busy}
+            >
               {busy ? tr.assets.uploading : tr.assets.upload}
             </Button>
           </div>

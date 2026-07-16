@@ -6,6 +6,7 @@ import { Button, Textarea } from '@/components/ui';
 import { tr } from '@/lib/i18n/tr';
 import type { PortalAsset, PortalEditJobState } from '@/lib/portal/service';
 import { fetchPortalEditJob, submitPortalEditRequest } from './actions';
+import { Bezel, Orb, SectionLabel, StatusNote } from './glass';
 
 const POLL_MS = 5_000;
 const MAX_VIDEO_SOURCES = 4;
@@ -92,10 +93,16 @@ export function EditTab({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5">
-        <p className="text-xs text-neutral-400">{tr.portal.editHint}</p>
+      <Bezel innerClassName="space-y-3 p-3.5">
+        <p className="text-xs leading-relaxed text-neutral-400">
+          {tr.portal.editHint}
+        </p>
 
-        <div className="flex gap-1.5">
+        {/* Segmented kind switch — one glass track, sliding emphasis. */}
+        <div
+          role="radiogroup"
+          className="flex rounded-full border border-white/10 bg-white/[0.03] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]"
+        >
           {(
             [
               ['edit_video', tr.portal.editKindVideo],
@@ -104,11 +111,13 @@ export function EditTab({
           ).map(([value, label]) => (
             <button
               key={value}
+              role="radio"
+              aria-checked={kind === value}
               onClick={() => switchKind(value)}
-              className={`flex-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
                 kind === value
-                  ? 'border-white/20 bg-white/[0.12] text-neutral-50'
-                  : 'border-white/10 bg-white/[0.04] text-neutral-500'
+                  ? 'bg-white/[0.12] text-neutral-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                  : 'text-neutral-500 hover:text-neutral-300'
               }`}
             >
               {label}
@@ -117,25 +126,34 @@ export function EditTab({
         </div>
 
         <div>
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+          <SectionLabel
+            className="!mb-1.5"
+            count={selected.length > 0 ? selected.length : undefined}
+          >
             {tr.portal.editPickAssets}
-          </p>
+          </SectionLabel>
           {pickable.length === 0 ? (
-            <p className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-3 text-center text-xs text-neutral-500">
-              {tr.portal.editNoAssets}
-            </p>
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] px-3 py-5 text-center">
+              <Orb className="!h-9 !w-9 !text-sm">
+                {wantKind === 'video' ? '🎬' : '🖼️'}
+              </Orb>
+              <p className="text-xs leading-relaxed text-neutral-500">
+                {tr.portal.editNoAssets}
+              </p>
+            </div>
           ) : (
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            <div className="stagger-children -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
               {pickable.map((asset) => {
                 const active = selected.includes(asset.id);
                 return (
                   <button
                     key={asset.id}
                     onClick={() => toggle(asset.id)}
-                    className={`w-20 shrink-0 overflow-hidden rounded-xl border text-left transition-colors ${
+                    aria-pressed={active}
+                    className={`relative w-20 shrink-0 overflow-hidden rounded-xl border text-left transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
                       active
-                        ? 'border-sky-400/60 bg-sky-400/10'
-                        : 'border-white/[0.08] bg-white/[0.03]'
+                        ? 'border-sky-400/60 bg-sky-400/10 shadow-[0_0_16px_rgba(56,189,248,0.18)]'
+                        : 'border-white/[0.08] bg-white/[0.03] hover:border-white/[0.16] hover:bg-white/[0.05]'
                     }`}
                   >
                     {asset.thumbUrl ? (
@@ -148,6 +166,14 @@ export function EditTab({
                     ) : (
                       <span className="grid h-14 w-full place-items-center text-lg">
                         {asset.kind === 'video' ? '🎬' : '🖼️'}
+                      </span>
+                    )}
+                    {active && (
+                      <span
+                        aria-hidden
+                        className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-sky-400 text-[10px] font-bold text-neutral-950 shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+                      >
+                        ✓
                       </span>
                     )}
                     <p className="truncate px-1.5 py-1 text-[10px] text-neutral-400">
@@ -175,31 +201,36 @@ export function EditTab({
         >
           {pending ? tr.common.loading : tr.portal.editSubmit}
         </Button>
-        {error && (
-          <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-center text-xs text-red-300">
-            {tr.common.error}
-          </p>
-        )}
-      </div>
+        {error && <StatusNote tone="error">{tr.common.error}</StatusNote>}
+      </Bezel>
 
       {job?.status === 'pending' && (
-        <p className="animate-enter flex items-center justify-center gap-2 rounded-xl border border-sky-400/20 bg-sky-400/10 p-4 text-center text-sm text-sky-200">
-          <span className="size-2 animate-pulse rounded-full bg-sky-300" />
-          {tr.portal.editQueued}
-        </p>
+        <section className="animate-enter space-y-3 rounded-2xl border border-sky-400/20 bg-sky-400/[0.06] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <p className="flex items-center gap-2 text-sm text-sky-200">
+            <span className="relative flex size-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-300 opacity-60 motion-reduce:hidden" />
+              <span className="relative inline-flex size-2 rounded-full bg-sky-300" />
+            </span>
+            {tr.portal.editQueued}
+          </p>
+          <div aria-hidden className="space-y-1.5">
+            <div className="h-2 w-3/4 animate-pulse rounded-full bg-white/[0.07]" />
+            <div className="h-2 w-1/2 animate-pulse rounded-full bg-white/[0.05]" />
+          </div>
+        </section>
       )}
       {job?.status === 'error' && (
-        <p className="animate-enter rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-center text-sm text-red-300">
+        <StatusNote tone="error" className="!rounded-xl !p-4 !text-sm">
           {tr.portal.editFailed}
-        </p>
+        </StatusNote>
       )}
       {job?.status === 'done' && (
-        <section className="animate-enter space-y-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-3.5">
+        <section className="animate-enter space-y-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           <p className="text-sm font-medium text-emerald-200">
             {tr.portal.editDone}
           </p>
           {job.note && (
-            <p className="text-xs text-neutral-300">
+            <p className="text-xs leading-relaxed text-neutral-300">
               {tr.portal.editNote}: {job.note}
             </p>
           )}
@@ -208,7 +239,7 @@ export function EditTab({
               src={job.resultUrl}
               controls
               playsInline
-              className="w-full rounded-xl"
+              className="w-full rounded-xl border border-white/[0.08]"
             />
           )}
           {job.resultUrl && job.resultKind === 'image' && (
@@ -216,7 +247,7 @@ export function EditTab({
             <img
               src={job.resultUrl}
               alt={tr.portal.editResult}
-              className="w-full rounded-xl"
+              className="w-full rounded-xl border border-white/[0.08]"
             />
           )}
         </section>

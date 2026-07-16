@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { Button, Field, Input } from '@/components/ui';
+import { Button, Field, Input, Label } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import { istanbulToUtc } from '@/lib/dates';
 import { tr } from '@/lib/i18n/tr';
@@ -88,15 +88,16 @@ export function ScheduleDialog({
         </Field>
 
         <div>
-          <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
-            {tr.card.platforms}
-          </span>
+          <Label>{tr.card.platforms}</Label>
           {available.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
+            <p className="flex items-center gap-2 rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
+              <span aria-hidden className="opacity-60">
+                🔗
+              </span>
               {tr.common.none}
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="stagger-children flex flex-wrap gap-2">
               {available.map((p) => {
                 const on = selected.includes(p);
                 return (
@@ -104,7 +105,8 @@ export function ScheduleDialog({
                     key={p}
                     type="button"
                     onClick={() => toggle(p)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                    aria-pressed={on}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/40 ${
                       on
                         ? 'border-indigo-300/40 bg-indigo-400/10 text-indigo-200 shadow-[0_0_0_3px_rgba(129,140,248,0.12)]'
                         : 'border-white/10 bg-white/[0.03] text-neutral-400 hover:border-white/20 hover:bg-white/[0.06] hover:text-neutral-200'
@@ -119,7 +121,11 @@ export function ScheduleDialog({
           )}
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <p className="animate-enter rounded-lg border border-red-500/25 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-200">
+            {error}
+          </p>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>

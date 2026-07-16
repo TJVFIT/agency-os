@@ -15,6 +15,11 @@ import {
   type CardWithClient,
 } from '@/lib/db/queries';
 import { interpolate, tr } from '@/lib/i18n/tr';
+import {
+  OPEN_CARD_STATUSES,
+  WORKLOAD_HORIZON_DAYS,
+  computeWorkload,
+} from '@/lib/workload';
 
 import { MissingWork } from './_components/missing-work';
 import {
@@ -26,7 +31,9 @@ import {
   type SuggestionItem,
 } from './_components/suggestions-panel';
 import { TodayPlan, type TodayShootItem } from './_components/today-plan';
+import { CountChip, EmptyState, SectionLabel } from './_components/ui-bits';
 import { WorkerStatus } from './_components/worker-status';
+import { WorkloadPanel } from './_components/workload-panel';
 
 /**
  * Dashboard (SPEC §12): my queue • gap radar • worker liveness. The live
@@ -57,53 +64,75 @@ export default async function DashboardPage() {
     shootRes,
     unreadRes,
     failRes,
+    workCardsRes,
+    taskTypesRes,
+    workShootsRes,
   ] = await Promise.all([
-      myQueue(userId, role),
-      gapRadar(),
-      listClients({ activeOnly: true }),
-      listProfiles(),
-      listActivity(50),
-      // Öneriler inbox: pending worker suggestions (UPGRADE_SPEC §9).
-      supabase
-        .from('suggestions')
-        .select('id, title, domain, card_id, clients(name)')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(30),
-      // Bugünün planı: my cards due today or overdue (UPGRADE_SPEC §6).
-      supabase
-        .from('cards')
-        .select('*, clients(id, name, slug, langs, colors)')
-        .eq('assignee', userId)
-        .not('status', 'in', '(published,archived)')
-        .not('due_at', 'is', null)
-        .lte('due_at', dayEnd)
-        .order('due_at', { ascending: true }),
-      // …plus today's shoots where I'm in the crew.
-      supabase
-        .from('shoots')
-        .select('id, title, starts_at, ends_at, clients(name)')
-        .contains('crew', [userId])
-        .neq('status', 'cancelled')
-        .gte('starts_at', dayStart)
-        .lte('starts_at', dayEnd)
-        .order('starts_at', { ascending: true }),
-      // Unread client messages (v3) — grouped per client below.
-      supabase
-        .from('client_messages')
-        .select('client_id, clients(name)')
-        .eq('sender', 'client')
-        .eq('read_by_team', false)
-        .limit(200),
-      // Başarısız yayınlar: publish jobs that exhausted their retries (req 27/28).
-      supabase
-        .from('ai_jobs')
-        .select('id, payload, error, updated_at')
-        .eq('kind', 'publish')
-        .eq('status', 'error')
-        .order('updated_at', { ascending: false })
-        .limit(20),
-    ]);
+    myQueue(userId, role),
+    gapRadar(),
+    listClients({ activeOnly: true }),
+    listProfiles(),
+    listActivity(50),
+    // Öneriler inbox: pending worker suggestions (UPGRADE_SPEC §9).
+    supabase
+      .from('suggestions')
+      .select('id, title, domain, card_id, clients(name)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(30),
+    // Bugünün planı: my cards due today or overdue (UPGRADE_SPEC §6).
+    supabase
+      .from('cards')
+      .select('*, clients(id, name, slug, langs, colors)')
+      .eq('assignee', userId)
+      .not('status', 'in', '(published,archived)')
+      .not('due_at', 'is', null)
+      .lte('due_at', dayEnd)
+      .order('due_at', { ascending: true }),
+    // …plus today's shoots where I'm in the crew.
+    supabase
+      .from('shoots')
+      .select('id, title, starts_at, ends_at, clients(name)')
+      .contains('crew', [userId])
+      .neq('status', 'cancelled')
+      .gte('starts_at', dayStart)
+      .lte('starts_at', dayEnd)
+      .order('starts_at', { ascending: true }),
+    // Unread client messages (v3) — grouped per client below.
+    supabase
+      .from('client_messages')
+      .select('client_id, clients(name)')
+      .eq('sender', 'client')
+      .eq('read_by_team', false)
+      .limit(200),
+    // Başarısız yayınlar: publish jobs that exhausted their retries (req 27/28).
+    supabase
+      .from('ai_jobs')
+      .select('id, payload, error, updated_at')
+      .eq('kind', 'publish')
+      .eq('status', 'error')
+      .order('updated_at', { ascending: false })
+      .limit(20),
+    // İş yükü (v4): open cards, task-type points, upcoming shoot crews —
+    // fed into the pure lib/workload engine below.
+    supabase
+      .from('cards')
+      .select('id, title, assignee, status, due_at, task_type_id')
+      .in('status', [...OPEN_CARD_STATUSES]),
+    supabase.from('task_types').select('id, name, workload_points, active'),
+    supabase
+      .from('shoots')
+      .select('crew')
+      .in('status', ['planned', 'confirmed'])
+      .gte('starts_at', dayStart)
+      .lte(
+        'starts_at',
+        new Date(
+          istanbulToUtc(`${todayStr}T00:00:00`).getTime() +
+            WORKLOAD_HORIZON_DAYS * 864e5,
+        ).toISOString(),
+      ),
+  ]);
 
   const suggestions: SuggestionItem[] = (
     (suggRes.data ?? []) as unknown as Array<{
@@ -142,6 +171,24 @@ export default async function DashboardPage() {
   const lastHeartbeat =
     activity.find((row) => row.action === 'worker.heartbeat')?.created_at ??
     null;
+
+  // İş yükü (v4): pure computation on the rows fetched above; the rebalance
+  // quick action re-runs the same engine server-side on live rows.
+  const workloads = computeWorkload(
+    profiles.map((p) => ({ id: p.id, name: p.full_name })),
+    (workCardsRes.data ?? []).map((c) => ({
+      id: c.id,
+      title: c.title,
+      assignee: c.assignee,
+      status: c.status,
+      dueAt: c.due_at,
+      taskTypeId: c.task_type_id,
+    })),
+    (workShootsRes.data ?? []).map((s) => s.crew ?? []),
+    Object.fromEntries(
+      (taskTypesRes.data ?? []).map((t) => [t.id, t.workload_points]),
+    ),
+  );
 
   // Unread client messages → one row per client with a count.
   const unreadByClient = new Map<string, { name: string; count: number }>();
@@ -196,6 +243,9 @@ export default async function DashboardPage() {
         <NewCardDialog
           clients={clients.map((c) => ({ id: c.id, name: c.name }))}
           profiles={profiles.map((p) => ({ id: p.id, full_name: p.full_name }))}
+          taskTypes={(taskTypesRes.data ?? [])
+            .filter((t) => t.active)
+            .map((t) => ({ id: t.id, name: t.name }))}
         />
       </PageHeader>
 
@@ -203,17 +253,24 @@ export default async function DashboardPage() {
         {isManager && publishFailures.length > 0 && (
           <Panel
             title={tr.dashboard.publishFailures}
+            actions={<CountChip value={publishFailures.length} tone="red" />}
             className="lg:col-span-3"
           >
             <PublishFailures failures={publishFailures} canRetry={isManager} />
           </Panel>
         )}
 
-        <Panel title={tr.dashboard.myQueue} className="lg:col-span-2">
+        <Panel
+          title={tr.dashboard.myQueue}
+          actions={<CountChip value={queue.mine.length} />}
+          className="lg:col-span-2"
+        >
           {queue.mine.length === 0 ? (
-            <p className="text-sm text-neutral-500">
-              {tr.dashboard.myQueueEmpty}
-            </p>
+            <EmptyState
+              icon="✓"
+              tone="emerald"
+              text={tr.dashboard.myQueueEmpty}
+            />
           ) : (
             <div className="stagger-children grid gap-2 sm:grid-cols-2">
               {queue.mine.map((card) => (
@@ -224,9 +281,9 @@ export default async function DashboardPage() {
 
           {isManager && queue.waiting.length > 0 && (
             <div className="mt-5 border-t border-white/[0.06] pt-4">
-              <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+              <SectionLabel count={queue.waiting.length}>
                 {tr.dashboard.waitingOnYou}
-              </h3>
+              </SectionLabel>
               <div className="stagger-children grid gap-2 sm:grid-cols-2">
                 {queue.waiting.map((card) => (
                   <CardTile key={card.id} card={card} showStatus />
@@ -236,17 +293,26 @@ export default async function DashboardPage() {
           )}
         </Panel>
 
-        <Panel title={tr.dashboard.gapRadar}>
+        <Panel
+          title={tr.dashboard.gapRadar}
+          actions={
+            gaps.length > 0 ? (
+              <CountChip value={gaps.length} tone="red" />
+            ) : undefined
+          }
+        >
           {gaps.length === 0 ? (
-            <p className="text-sm text-neutral-500">
-              {tr.dashboard.gapRadarEmpty}
-            </p>
+            <EmptyState
+              icon="✓"
+              tone="emerald"
+              text={tr.dashboard.gapRadarEmpty}
+            />
           ) : (
             <ul className="stagger-children space-y-2">
               {gaps.map((client) => (
                 <li
                   key={client.id}
-                  className="flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.08] px-3 py-2.5 text-sm"
+                  className="flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.08] px-3 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-red-500/40 hover:bg-red-500/[0.12]"
                 >
                   <span
                     className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]"
@@ -263,7 +329,15 @@ export default async function DashboardPage() {
           )}
         </Panel>
 
-        <Panel title={tr.automation.suggestionsInbox} className="lg:col-span-2">
+        <Panel
+          title={tr.automation.suggestionsInbox}
+          actions={
+            suggestions.length > 0 ? (
+              <CountChip value={suggestions.length} />
+            ) : undefined
+          }
+          className="lg:col-span-2"
+        >
           <SuggestionsPanel suggestions={suggestions} canResolve={isManager} />
         </Panel>
 
@@ -275,19 +349,34 @@ export default async function DashboardPage() {
           />
         </Panel>
 
+        <Panel title={tr.workload.title} className="lg:col-span-2">
+          <WorkloadPanel workloads={workloads} canRebalance={isManager} />
+        </Panel>
+
         {unreadByClient.size > 0 && (
-          <Panel title={tr.dashboard.clientMessages}>
+          <Panel
+            title={tr.dashboard.clientMessages}
+            actions={
+              <CountChip
+                value={[...unreadByClient.values()].reduce(
+                  (sum, entry) => sum + entry.count,
+                  0,
+                )}
+                tone="emerald"
+              />
+            }
+          >
             <ul className="stagger-children space-y-2">
               {[...unreadByClient.entries()].map(([clientId, entry]) => (
                 <li key={clientId}>
                   <a
                     href={`/clients/${clientId}`}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2.5 text-sm transition-colors duration-300 hover:bg-emerald-400/[0.12]"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-emerald-400/40 hover:bg-emerald-400/[0.12]"
                   >
                     <span className="truncate text-neutral-100">
                       {entry.name}
                     </span>
-                    <span className="shrink-0 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[11px] tabular-nums text-emerald-200">
+                    <span className="shrink-0 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium tabular-nums text-emerald-200">
                       {entry.count}
                     </span>
                   </a>
@@ -297,7 +386,15 @@ export default async function DashboardPage() {
           </Panel>
         )}
 
-        <Panel title={tr.automation.missingWork} className="lg:col-span-3">
+        <Panel
+          title={tr.automation.missingWork}
+          actions={
+            missingWork.length > 0 ? (
+              <CountChip value={missingWork.length} tone="amber" />
+            ) : undefined
+          }
+          className="lg:col-span-3"
+        >
           <MissingWork items={missingWork} />
         </Panel>
       </div>

@@ -12,7 +12,11 @@ import { tr } from '@/lib/i18n/tr';
 export function ReportBody({ markdown }: { markdown: string }) {
   const text = (markdown ?? '').trim();
   if (!text) {
-    return <p className="text-sm text-neutral-500">{tr.common.none}</p>;
+    return (
+      <p className="py-2 text-center text-sm text-neutral-500">
+        {tr.common.none}
+      </p>
+    );
   }
 
   const lines = text.split(/\r?\n/);
@@ -26,7 +30,7 @@ export function ReportBody({ markdown }: { markdown: string }) {
     blocks.push(
       <ul
         key={key}
-        className="ml-4 list-disc space-y-1.5 text-neutral-200 marker:text-neutral-600"
+        className="ml-4 list-disc space-y-1.5 text-sm text-neutral-300 marker:text-indigo-300/40"
       >
         {items.map((b, i) => (
           <li key={i} className="leading-relaxed">
@@ -55,8 +59,8 @@ export function ReportBody({ markdown }: { markdown: string }) {
           key={key}
           className={
             level <= 2
-              ? 'text-sm font-semibold tracking-tight text-neutral-100'
-              : 'text-sm font-medium tracking-tight text-neutral-200'
+              ? 'pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-400 first:pt-0'
+              : 'text-sm font-semibold tracking-tight text-neutral-100'
           }
         >
           {renderInline(heading[2])}
@@ -73,7 +77,7 @@ export function ReportBody({ markdown }: { markdown: string }) {
 
     flushBullets(`${key}-flush`);
     blocks.push(
-      <p key={key} className="text-sm leading-relaxed text-neutral-200">
+      <p key={key} className="text-sm leading-relaxed text-neutral-300">
         {renderInline(line)}
       </p>,
     );
@@ -81,7 +85,7 @@ export function ReportBody({ markdown }: { markdown: string }) {
 
   flushBullets('tail-flush');
 
-  return <div className="space-y-3 tabular-nums">{blocks}</div>;
+  return <div className="space-y-3 break-words tabular-nums">{blocks}</div>;
 }
 
 /** Render inline **bold** segments; everything else stays literal text. */

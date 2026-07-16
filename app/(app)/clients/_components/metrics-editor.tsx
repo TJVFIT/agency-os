@@ -8,6 +8,7 @@ import type { Report } from '@/lib/db/types';
 import { istanbulDateString, istanbulWeekStart } from '@/lib/dates';
 import { tr } from '@/lib/i18n/tr';
 
+import { CountChip, EmptyState } from './empty-state';
 import { SaveIndicator, type SaveState } from './save-state';
 
 type MetricRow = { key: string; value: string };
@@ -103,10 +104,14 @@ export function MetricsEditor({
               value={weekStart}
               onChange={(e) => pickWeek(e.target.value)}
               disabled={!canManage}
+              className="tabular-nums"
             />
             {existing && (
-              <p className="mt-1 text-[11px] text-neutral-500">
-                {tr.common.saved}
+              <p className="mt-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+                  {tr.common.saved}
+                </span>
               </p>
             )}
           </div>
@@ -125,14 +130,14 @@ export function MetricsEditor({
                     value={row.value}
                     onChange={(e) => update(i, { value: e.target.value })}
                     placeholder="0"
-                    className="w-28"
+                    className="w-28 tabular-nums"
                   />
                   <button
                     type="button"
                     onClick={() =>
                       setRows((prev) => prev.filter((_, j) => j !== i))
                     }
-                    className="shrink-0 px-1 py-2 text-xs text-neutral-500 hover:text-red-400"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] text-neutral-600 transition-colors duration-300 hover:bg-red-400/10 hover:text-red-300"
                     aria-label={tr.common.remove}
                   >
                     ✕
@@ -156,17 +161,22 @@ export function MetricsEditor({
 
         {/* History */}
         <div>
-          <Label>{tr.clients.reportsHistory}</Label>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+              {tr.clients.reportsHistory}
+            </span>
+            <CountChip value={reports.length} />
+          </div>
           {reports.length === 0 ? (
-            <p className="text-xs text-neutral-500">{tr.clients.noReports}</p>
+            <EmptyState compact icon="📊" text={tr.clients.noReports} />
           ) : (
-            <ul className="space-y-2">
+            <ul className="stagger-children max-h-96 space-y-2 overflow-y-auto pr-1">
               {reports.map((r) => (
                 <li
                   key={r.id}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5"
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-300 hover:border-white/[0.12]"
                 >
-                  <div className="mb-1 font-mono text-xs text-neutral-400">
+                  <div className="mb-1.5 font-mono text-xs tabular-nums text-neutral-400">
                     {r.week_start}
                   </div>
                   {metricsToRows(r.metrics).length > 0 && (
@@ -174,7 +184,7 @@ export function MetricsEditor({
                       {metricsToRows(r.metrics).map((m) => (
                         <span
                           key={m.key}
-                          className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-neutral-300"
+                          className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[11px] tabular-nums text-neutral-300"
                         >
                           {m.key}: {m.value}
                         </span>
@@ -182,7 +192,7 @@ export function MetricsEditor({
                     </div>
                   )}
                   {r.body_md && (
-                    <p className="mt-2 whitespace-pre-wrap text-xs text-neutral-300">
+                    <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-neutral-300">
                       {r.body_md}
                     </p>
                   )}

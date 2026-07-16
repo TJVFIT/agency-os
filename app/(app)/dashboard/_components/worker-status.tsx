@@ -53,7 +53,13 @@ export function WorkerStatus({
   const alive = lastBeat !== null && now - lastBeat < DEAD_AFTER_MS;
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        alive
+          ? 'border-white/10 bg-white/[0.04]'
+          : 'border-red-500/25 bg-red-500/[0.08]'
+      }`}
+    >
       <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
         {alive && (
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
@@ -67,16 +73,18 @@ export function WorkerStatus({
         />
       </span>
       {alive ? (
-        <span className="text-neutral-300">
+        <span className="whitespace-nowrap text-neutral-300">
           {tr.dashboard.workerAlive}
           {lastBeat !== null && (
-            <span className="ml-1 text-neutral-500">
+            <span className="ml-1 tabular-nums text-neutral-500">
               · {relativeTr(lastBeat)}
             </span>
           )}
         </span>
       ) : (
-        <span className="text-red-400">{tr.dashboard.workerDead}</span>
+        <span className="whitespace-nowrap text-red-300">
+          {tr.dashboard.workerDead}
+        </span>
       )}
     </div>
   );

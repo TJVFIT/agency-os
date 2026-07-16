@@ -13,6 +13,8 @@ import {
 } from '@/lib/actions/portal';
 import type { Database } from '@/lib/db/types';
 
+import { CountChip, EmptyState, ErrorNote } from '../../_components/empty-state';
+
 type IdeaStatus = Database['public']['Enums']['idea_status'];
 
 export interface IdeaRow {
@@ -76,7 +78,7 @@ export function PortalPanelClient({
           <Label>{tr.portal.portalLink}</Label>
           {url ? (
             <div className="space-y-2">
-              <p className="break-all rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 font-mono text-xs text-neutral-300">
+              <p className="break-all rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 font-mono text-xs leading-relaxed text-neutral-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 {url}
               </p>
               <div className="flex items-center gap-2">
@@ -120,15 +122,20 @@ export function PortalPanelClient({
 
         {/* Fikir kutusu */}
         <div>
-          <Label>{tr.portal.ideasInbox}</Label>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+              {tr.portal.ideasInbox}
+            </span>
+            <CountChip value={ideas.length} />
+          </div>
           {ideas.length === 0 ? (
-            <p className="text-xs text-neutral-500">{tr.common.none}</p>
+            <EmptyState compact icon="💡" text={tr.common.none} />
           ) : (
-            <ul className="space-y-2">
+            <ul className="stagger-children space-y-2">
               {ideas.map((idea) => (
                 <li
                   key={idea.id}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5"
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-300 hover:border-white/[0.12]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -140,7 +147,7 @@ export function PortalPanelClient({
                       </p>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${STATUS_CHIP[idea.status]}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CHIP[idea.status]}`}
                     >
                       {tr.portal.ideaStatuses[idea.status]}
                     </span>
@@ -151,7 +158,7 @@ export function PortalPanelClient({
                     </p>
                   )}
                   {idea.refinedSummary && (
-                    <p className="mt-1 rounded-md border border-sky-400/20 bg-sky-400/10 px-2 py-1 text-xs text-sky-200">
+                    <p className="mt-1.5 rounded-lg border border-sky-400/20 bg-sky-400/10 px-2 py-1 text-xs leading-relaxed text-sky-200">
                       <span className="font-medium">
                         {tr.portal.refinedSummary}:
                       </span>{' '}
@@ -187,7 +194,7 @@ export function PortalPanelClient({
           )}
         </div>
 
-        {error && <p className="text-xs text-red-400">{tr.common.error}</p>}
+        {error && <ErrorNote text={tr.common.error} />}
       </div>
     </Panel>
   );

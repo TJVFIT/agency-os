@@ -7,6 +7,7 @@ import { tr } from '@/lib/i18n/tr';
 import { fmtIstanbul, fmtIstanbulTime } from '@/lib/dates';
 import type { PortalAvailability } from '@/lib/portal/service';
 import { submitPortalAvailability } from './actions';
+import { Bezel, ROW, SectionLabel, StatusNote } from './glass';
 
 /** Müsaitlik tab — datetime-local range + note, plus upcoming windows. */
 export function AvailabilityTab({
@@ -49,15 +50,15 @@ export function AvailabilityTab({
   return (
     <div className="space-y-4">
       {sent ? (
-        <p className="animate-enter rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center text-sm text-emerald-200">
+        <StatusNote tone="success" className="!rounded-xl !p-4 !text-sm">
           {tr.portal.availabilitySent}
-        </p>
+        </StatusNote>
       ) : (
-        <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <Bezel innerClassName="space-y-3 p-3.5">
           <Field label={tr.production.leaveStart}>
             <Input
               type="datetime-local"
-              className="[color-scheme:dark]"
+              className="tabular-nums [color-scheme:dark]"
               value={startsAt}
               onChange={(e) => setStartsAt(e.target.value)}
             />
@@ -65,7 +66,7 @@ export function AvailabilityTab({
           <Field label={tr.production.leaveEnd}>
             <Input
               type="datetime-local"
-              className="[color-scheme:dark]"
+              className="tabular-nums [color-scheme:dark]"
               value={endsAt}
               min={startsAt || undefined}
               onChange={(e) => setEndsAt(e.target.value)}
@@ -86,30 +87,30 @@ export function AvailabilityTab({
           >
             {pending ? tr.common.loading : tr.portal.availabilityAdd}
           </Button>
-          {error && (
-            <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1.5 text-center text-xs text-red-300">
-              {tr.common.error}
-            </p>
-          )}
-        </div>
+          {error && <StatusNote tone="error">{tr.common.error}</StatusNote>}
+        </Bezel>
       )}
 
       {windows.length > 0 && (
-        <ul className="stagger-children space-y-2">
-          {windows.map((w) => (
-            <li
-              key={w.id}
-              className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
-            >
-              <p className="text-sm text-neutral-200">
-                {fmtIstanbul(w.startsAt)} – {fmtIstanbulTime(w.endsAt)}
-              </p>
-              {w.note && (
-                <p className="mt-0.5 text-xs text-neutral-500">{w.note}</p>
-              )}
-            </li>
-          ))}
-        </ul>
+        <section>
+          <SectionLabel count={windows.length}>
+            {tr.portal.tabs.availability}
+          </SectionLabel>
+          <ul className="stagger-children space-y-2">
+            {windows.map((w) => (
+              <li key={w.id} className={`px-3 py-2.5 ${ROW}`}>
+                <p className="text-sm tabular-nums text-neutral-200">
+                  {fmtIstanbul(w.startsAt)} – {fmtIstanbulTime(w.endsAt)}
+                </p>
+                {w.note && (
+                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">
+                    {w.note}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

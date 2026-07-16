@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  equipmentConflicts,
   haversineKm,
   suggestRoute,
   suggestShootSlots,
+  vehicleBlockedOn,
   type Booking,
   type SlotInput,
   type StaffMember,
@@ -275,6 +277,174 @@ describe('suggestShootSlots — vehicles and ranking', () => {
     );
     expect(out[0].startsAt.toISOString()).toBe('2026-07-06T08:00:00.000Z');
     expect(out[0].reasons).toContain('3 uygun ekip üyesi');
+  });
+});
+
+describe('suggestShootSlots — vehicle blocks (v4 §4)', () => {
+  it('never suggests a vehicle inside a maintenance block', () => {
+    const out = suggestShootSlots(
+      input({
+        vehicles: [
+          {
+            ...vehicle('v1', 4),
+            blocks: [{ startsOn: '2026-07-06', endsOn: '2026-07-06' }],
+          },
+          vehicle('v2', 4),
+        ],
+      }),
+    );
+    expect(out.length).toBeGreaterThan(0);
+    for (const slot of out) expect(slot.vehicleId).toBe('v2');
+  });
+
+  it('yields nothing on a day when every vehicle is blocked', () => {
+    const out = suggestShootSlots(
+      input({
+        vehicles: [
+          {
+            ...vehicle('v1', 4),
+            blocks: [{ startsOn: '2026-07-01', endsOn: '2026-07-31' }],
+          },
+        ],
+        horizonDays: 1,
+      }),
+    );
+    expect(out).toEqual([]);
+  });
+
+  it('suggests the vehicle again once the block window ends', () => {
+    const out = suggestShootSlots(
+      input({
+        vehicles: [
+          {
+            ...vehicle('v1', 4),
+            blocks: [{ startsOn: '2026-07-06', endsOn: '2026-07-06' }],
+          },
+        ],
+        horizonDays: 2,
+      }),
+    );
+    expect(out.length).toBeGreaterThan(0);
+    for (const slot of out) {
+      expect(slot.startsAt.getTime()).toBeGreaterThanOrEqual(
+        TUE_0900_IST.getTime(),
+      );
+      expect(slot.vehicleId).toBe('v1');
+    }
+  });
+});
+
+describe('vehicleBlockedOn', () => {
+  const blocked: VehicleInfo = {
+    ...vehicle('v1', 4),
+    blocks: [{ startsOn: '2026-07-06', endsOn: '2026-07-07' }],
+  };
+
+  it('is true inside the window (Istanbul day, inclusive bounds)', () => {
+    expect(vehicleBlockedOn(blocked, MON_0900_IST)).toBe(true);
+    expect(vehicleBlockedOn(blocked, TUE_0900_IST)).toBe(true);
+  });
+
+  it('is false outside the window and without blocks', () => {
+    expect(
+      vehicleBlockedOn(blocked, new Date('2026-07-08T06:00:00.000Z')),
+    ).toBe(false);
+    expect(vehicleBlockedOn(vehicle('v2', 4), MON_0900_IST)).toBe(false);
+  });
+});
+
+describe('suggestShootSlots — equipment double-booking (v4 §5)', () => {
+  const camBookedAllMonday: Booking = {
+    startsAt: MON_0900_IST,
+    endsAt: MON_1900_IST,
+    crew: [],
+    vehicleId: null,
+    equipmentIds: ['cam'],
+  };
+
+  it('skips slots where requested equipment is reserved by an overlapping shoot', () => {
+    const out = suggestShootSlots(
+      input({
+        staff: [staff('a'), staff('b'), staff('c'), staff('d')],
+        equipmentIds: ['cam', 'light'],
+        bookings: [camBookedAllMonday],
+        horizonDays: 2,
+      }),
+    );
+    expect(out.length).toBeGreaterThan(0);
+    // cam is taken all Monday → every suggestion lands on Tuesday
+    for (const slot of out) {
+      expect(slot.startsAt.getTime()).toBeGreaterThanOrEqual(
+        TUE_0900_IST.getTime(),
+      );
+    }
+  });
+
+  it('suggests Monday slots when the requested equipment differs', () => {
+    const out = suggestShootSlots(
+      input({
+        staff: [staff('a'), staff('b'), staff('c'), staff('d')],
+        equipmentIds: ['gimbal'],
+        bookings: [camBookedAllMonday],
+      }),
+    );
+    expect(out.length).toBeGreaterThan(0);
+    expect(out[0].startsAt.toISOString()).toBe('2026-07-06T06:00:00.000Z');
+  });
+
+  it('treats a booking touching the slot edge as non-conflicting', () => {
+    // cam frees up at 09:30Z — first slot with the cam starts right there.
+    const out = suggestShootSlots(
+      input({
+        equipmentIds: ['cam'],
+        bookings: [
+          {
+            startsAt: MON_0900_IST,
+            endsAt: new Date('2026-07-06T09:30:00.000Z'),
+            crew: [],
+            vehicleId: null,
+            equipmentIds: ['cam'],
+          },
+        ],
+      }),
+    );
+    expect(out[0].startsAt.toISOString()).toBe('2026-07-06T09:30:00.000Z');
+  });
+
+  it('ignores equipment when the request list is empty', () => {
+    const out = suggestShootSlots(input({ bookings: [camBookedAllMonday] }));
+    expect(out.length).toBeGreaterThan(0);
+    expect(out[0].startsAt.toISOString()).toBe('2026-07-06T06:00:00.000Z');
+  });
+});
+
+describe('equipmentConflicts (v4 §5)', () => {
+  const slot = { startsAt: MON_0900_IST, endsAt: new Date('2026-07-06T09:30:00.000Z') };
+
+  it('flags equipment reserved by a time-overlapping shoot', () => {
+    const hits = equipmentConflicts(slot, ['cam', 'light'], [
+      {
+        startsAt: new Date('2026-07-06T08:00:00.000Z'),
+        endsAt: new Date('2026-07-06T11:00:00.000Z'),
+        equipmentIds: ['cam', 'gimbal'],
+      },
+    ]);
+    expect(hits).toEqual(['cam']);
+  });
+
+  it('ignores bookings that only touch the slot edge', () => {
+    const hits = equipmentConflicts(slot, ['cam'], [
+      {
+        startsAt: new Date('2026-07-06T09:30:00.000Z'),
+        endsAt: new Date('2026-07-06T12:00:00.000Z'),
+        equipmentIds: ['cam'],
+      },
+    ]);
+    expect(hits).toEqual([]);
+  });
+
+  it('is empty for empty requests', () => {
+    expect(equipmentConflicts(slot, [], [])).toEqual([]);
   });
 });
 

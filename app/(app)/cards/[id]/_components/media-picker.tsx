@@ -64,22 +64,25 @@ export function MediaPicker({
       </div>
 
       {attached.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
+        <p className="flex items-center gap-2 rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5 text-xs text-neutral-500">
+          <span aria-hidden className="opacity-60">
+            🖼
+          </span>
           {tr.card.noMedia}
         </p>
       ) : (
-        <ul className="flex flex-wrap gap-2">
+        <ul className="stagger-children flex flex-wrap gap-2">
           {attached.map((a) => (
             <li
               key={a.id}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-neutral-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-neutral-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors duration-300 hover:border-white/20"
             >
-              <span>{KIND_ICON[a.kind]}</span>
+              <span aria-hidden>{KIND_ICON[a.kind]}</span>
               <span className="max-w-[10rem] truncate">{a.name}</span>
               <button
                 type="button"
                 onClick={() => onChange(selectedIds.filter((x) => x !== a.id))}
-                className="text-neutral-500 transition-colors duration-300 hover:text-red-400"
+                className="rounded-full text-neutral-500 transition-colors duration-300 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                 aria-label={tr.common.remove}
               >
                 ✕
@@ -95,9 +98,17 @@ export function MediaPicker({
         title={tr.card.chooseMedia}
       >
         {assets.length === 0 ? (
-          <p className="text-sm text-neutral-400">{tr.assets.empty}</p>
+          <div className="animate-enter flex flex-col items-center gap-2.5 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center">
+            <span
+              aria-hidden
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+            >
+              🖼
+            </span>
+            <p className="text-xs text-neutral-500">{tr.assets.empty}</p>
+          </div>
         ) : (
-          <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+          <div className="stagger-children grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
             {assets.map((a) => {
               const on = draft.includes(a.id);
               return (
@@ -105,24 +116,30 @@ export function MediaPicker({
                   key={a.id}
                   type="button"
                   onClick={() => toggle(a.id)}
-                  className={`flex flex-col gap-1 rounded-xl border p-2 text-left text-xs transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                  aria-pressed={on}
+                  className={`flex flex-col gap-1 rounded-xl border p-2 text-left text-xs transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/40 ${
                     on
                       ? 'border-indigo-300/40 bg-indigo-400/10 shadow-[0_0_0_3px_rgba(129,140,248,0.12)]'
                       : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
                   }`}
                 >
                   <span className="flex items-center justify-between">
-                    <span className="text-lg">{KIND_ICON[a.kind]}</span>
+                    <span aria-hidden className="text-lg">
+                      {KIND_ICON[a.kind]}
+                    </span>
                     <span
-                      className={`text-[0.65rem] ${
-                        on ? 'text-indigo-200' : 'text-neutral-600'
+                      aria-hidden
+                      className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                        on
+                          ? 'border-indigo-300/40 bg-indigo-400/20 text-indigo-100'
+                          : 'border-white/10 bg-white/[0.03] text-transparent'
                       }`}
                     >
-                      {on ? '✓' : ''}
+                      ✓
                     </span>
                   </span>
                   <span className="truncate text-neutral-200">{a.name}</span>
-                  <span className="text-[0.65rem] text-neutral-600">
+                  <span className="text-[11px] text-neutral-600">
                     {tr.assets.sources[a.source]}
                   </span>
                 </button>

@@ -14,6 +14,7 @@ import {
 } from '@/lib/db/types';
 import { tr } from '@/lib/i18n/tr';
 
+import { CountChip, EmptyState } from './empty-state';
 import { SaveIndicator, type SaveState } from './save-state';
 
 export function SocialAccountsEditor({
@@ -60,20 +61,25 @@ export function SocialAccountsEditor({
   return (
     <Panel
       title={tr.clients.socialAccounts}
-      actions={<SaveIndicator state={state} />}
+      actions={
+        <div className="flex items-center gap-2">
+          <SaveIndicator state={state} />
+          <CountChip value={accounts.length} />
+        </div>
+      }
     >
       <div className="space-y-3">
         {accounts.length === 0 ? (
-          <p className="text-xs text-neutral-500">{tr.common.none}</p>
+          <EmptyState compact icon="🔗" text={tr.common.none} />
         ) : (
-          <ul className="space-y-1">
+          <ul className="stagger-children space-y-1.5">
             {accounts.map((a) => (
               <li
                 key={a.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5"
+                className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-300 hover:border-white/[0.12]"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[11px] text-neutral-300">
+                  <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[11px] font-medium text-neutral-300">
                     {tr.platforms[a.platform as Platform] ?? a.platform}
                   </span>
                   <span className="truncate text-sm text-neutral-200">
@@ -85,7 +91,7 @@ export function SocialAccountsEditor({
                     type="button"
                     onClick={() => remove(a.id)}
                     disabled={pending}
-                    className="shrink-0 text-xs text-neutral-500 hover:text-red-400 disabled:opacity-50"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] text-neutral-600 transition-colors duration-300 hover:bg-red-400/10 hover:text-red-300 disabled:opacity-50"
                     aria-label={tr.common.remove}
                   >
                     ✕
@@ -97,8 +103,8 @@ export function SocialAccountsEditor({
         )}
 
         {canManage && (
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[8rem] flex-1">
               <Label>{tr.clients.platform}</Label>
               <Select
                 value={platform}
@@ -112,7 +118,7 @@ export function SocialAccountsEditor({
                 ))}
               </Select>
             </div>
-            <div className="flex-1">
+            <div className="min-w-[8rem] flex-1">
               <Label>{tr.clients.handle}</Label>
               <Input
                 value={handle}
@@ -131,6 +137,7 @@ export function SocialAccountsEditor({
               variant="secondary"
               onClick={add}
               disabled={pending || !handle.trim()}
+              className="shrink-0"
             >
               {tr.clients.addAccount}
             </Button>

@@ -18,6 +18,8 @@ const createCardSchema = z.object({
   assignee: z.uuid().nullish(),
   dueAt: z.iso.datetime({ offset: true }).nullish(),
   priority: z.number().int().min(1).max(5).default(3),
+  /** Görev türü (task_types, v4 §6) — feeds workload scoring + defaults. */
+  taskTypeId: z.uuid().nullish(),
 });
 
 export async function createCard(
@@ -28,15 +30,33 @@ export async function createCard(
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const supabase = await createSupabaseServer();
+
+  // Task-type defaults (v4 §6): an unassigned card picks up the type's
+  // default_assignee; inactive/unknown types are rejected server-side.
+  let assignee = parsed.data.assignee ?? null;
+  let taskTypeId: string | null = null;
+  if (parsed.data.taskTypeId) {
+    const { data: taskType } = await supabase
+      .from('task_types')
+      .select('id, active, default_assignee')
+      .eq('id', parsed.data.taskTypeId)
+      .single();
+    if (!taskType || !taskType.active)
+      return { ok: false, error: 'validation' };
+    taskTypeId = taskType.id;
+    if (!assignee) assignee = taskType.default_assignee;
+  }
+
   const { data, error } = await supabase
     .from('cards')
     .insert({
       client_id: parsed.data.clientId,
       title: parsed.data.title,
       type: parsed.data.type,
-      assignee: parsed.data.assignee ?? null,
+      assignee,
       due_at: parsed.data.dueAt ?? null,
       priority: parsed.data.priority,
+      task_type_id: taskTypeId,
       created_by: session.userId,
     })
     .select('id')

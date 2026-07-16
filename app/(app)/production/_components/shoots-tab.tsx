@@ -3,16 +3,18 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 
-import { Button, Panel } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { transitionShoot } from '@/lib/actions/production';
 import { fmtIstanbul, fmtIstanbulTime } from '@/lib/dates';
 import { tr } from '@/lib/i18n/tr';
 import type { Shoot } from '@/lib/db/types';
 
+import { EmptyState } from './empty-state';
 import { RoutePanel } from './route-panel';
 import { ShootDialog } from './shoot-dialog';
 import type {
   ClientOption,
+  EquipmentRow,
   ProfileOption,
   ShootRow,
   VehicleRow,
@@ -42,7 +44,7 @@ function ShootStatusChip({ status }: { status: Shoot['status'] }) {
   const c = STATUS_CHIP[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${c.chip}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${c.chip}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
       {tr.production.statuses[status]}
@@ -56,11 +58,16 @@ export function ShootsTab({
   clients,
   profiles,
   vehicles,
+  equipment,
 }: {
   shoots: ShootRow[];
   clients: ClientOption[];
   profiles: ProfileOption[];
   vehicles: Pick<VehicleRow, 'id' | 'name' | 'active'>[];
+  equipment: Pick<
+    EquipmentRow,
+    'id' | 'name' | 'kind' | 'active' | 'vehicle_id'
+  >[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -107,8 +114,12 @@ export function ShootsTab({
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-neutral-500">
+        <div className="animate-enter flex flex-wrap items-center justify-between gap-2">
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[11px] text-neutral-500">
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 rounded-full bg-indigo-300/70 shadow-[0_0_6px_rgba(165,180,252,0.5)]"
+            />
             {tr.production.defaultBlock}
           </p>
           <Button variant="primary" onClick={() => setCreateOpen(true)}>
@@ -116,27 +127,47 @@ export function ShootsTab({
           </Button>
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <p
+            role="alert"
+            className="animate-enter rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200"
+          >
+            {error}
+          </p>
+        )}
 
         {days.length === 0 && (
-          <Panel className="animate-enter">
-            <p className="text-sm text-neutral-500">{tr.production.noShoots}</p>
-          </Panel>
+          <EmptyState
+            icon="🎬"
+            text={tr.production.noShoots}
+            cta={
+              <Button variant="primary" onClick={() => setCreateOpen(true)}>
+                {tr.production.newShoot}
+              </Button>
+            }
+          />
         )}
 
         {days.map(([day, dayShoots]) => (
           <section key={day} className="animate-enter">
-            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">
+            <h3 className="mb-1.5 flex items-baseline gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">
               {fmtIstanbul(dayShoots[0].starts_at, 'd MMM yyyy')}
+              <span className="rounded-full border border-white/[0.06] bg-white/[0.03] px-1.5 text-[10px] font-semibold tabular-nums leading-4 text-neutral-500">
+                {dayShoots.length}
+              </span>
+              <span
+                aria-hidden
+                className="h-px flex-1 self-center bg-gradient-to-r from-white/[0.08] to-transparent"
+              />
             </h3>
             <ul className="stagger-children space-y-1.5">
               {dayShoots.map((shoot) => (
                 <li
                   key={shoot.id}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.10] hover:bg-white/[0.05]"
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-white/[0.10] hover:bg-white/[0.05] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_-12px_rgba(0,0,0,0.6)]"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs text-neutral-400">
+                    <span className="rounded-md border border-white/[0.06] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-neutral-400">
                       {fmtIstanbulTime(shoot.starts_at)}–
                       {fmtIstanbulTime(shoot.ends_at)}
                     </span>
@@ -149,7 +180,7 @@ export function ShootsTab({
                     <ShootStatusChip status={shoot.status} />
                     {shoot.tasks_opened && (
                       <span
-                        className="inline-flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300"
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                         title={tr.production.tasksOpened}
                       >
                         ✓ {tr.production.tasksOpened}
@@ -159,15 +190,19 @@ export function ShootsTab({
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
                     <span>
                       {tr.production.crew}:{' '}
-                      {shoot.crew.length
-                        ? shoot.crew
-                            .map((id) => profileNames.get(id) ?? '—')
-                            .join(', ')
-                        : tr.common.none}
+                      <span className="text-neutral-400">
+                        {shoot.crew.length
+                          ? shoot.crew
+                              .map((id) => profileNames.get(id) ?? '—')
+                              .join(', ')
+                          : tr.common.none}
+                      </span>
                     </span>
                     <span>
                       {tr.production.vehicle}:{' '}
-                      {shoot.vehicles?.name ?? tr.common.none}
+                      <span className="text-neutral-400">
+                        {shoot.vehicles?.name ?? tr.common.none}
+                      </span>
                     </span>
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -227,6 +262,7 @@ export function ShootsTab({
           clients={clients}
           profiles={profiles}
           vehicles={vehicles}
+          equipment={equipment}
           open={createOpen}
           onClose={() => setCreateOpen(false)}
         />
@@ -237,6 +273,7 @@ export function ShootsTab({
           clients={clients}
           profiles={profiles}
           vehicles={vehicles}
+          equipment={equipment}
           shoot={editing}
           open
           onClose={() => setEditing(null)}
