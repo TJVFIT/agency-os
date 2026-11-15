@@ -18,6 +18,7 @@ The repository contains a Next.js web app and a TypeScript background worker. Ex
 - Next.js 16, React 19, TypeScript, and pnpm
 - Supabase/PostgreSQL for application data and authentication
 - A Node.js/TypeScript worker for asynchronous work and integrations
+- A Tauri 2 desktop shell that wraps a running web app instance; see [desktop/README.md](desktop/README.md).
 - S3-compatible object storage, with Cloudflare R2 described in the setup guide
 - FFmpeg-based media tooling, with WhisperX and rembg documented for the worker
 - Vitest, ESLint, TypeScript checks, and Prettier configuration
