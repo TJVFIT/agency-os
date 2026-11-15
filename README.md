@@ -49,4 +49,4 @@ pnpm test
 pnpm build
 ```
 
-These commands are available in the repository scripts; their current results depend on the environment and have not been asserted by this README.
+Run these from the repository root; the full service setup is documented above.
